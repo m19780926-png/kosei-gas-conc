@@ -60,15 +60,18 @@
   計算式<br>
   ・換算係数が無い時：校正ガス濃度 ＝ 1st × 1.12〜1.6<br>
   ・換算係数が有る時：校正ガス濃度 ＝ 1st × 1.12〜1.6 ÷ 換算係数<br>
-  ※結果は小数第2位まで表示します（表示上の四捨五入）。
+  ※結果は四捨五入せず、小数第3位以下を切り捨てて小数第2位まで表示します。
 </div>
 
 <script>
 var GASES = ["B2H6", "CLF3", "DIPAS", "F2", "HBR", "HF", "O3", "Si2H6"];
 
+function trunc2(n) {
+  return Math.floor(n * 100 + 1e-9) / 100;
+}
 function fmt(n) {
   if (!isFinite(n)) return "―";
-  return (Math.round(n * 100) / 100).toString();
+  return trunc2(n).toFixed(2);
 }
 
 function makeRow() {
@@ -170,8 +173,8 @@ function collectResults() {
       name: name,
       first: first,
       factor: hasFactor ? factorRaw : "なし",
-      low: Math.round(low * 100) / 100,
-      high: Math.round(high * 100) / 100
+      low: trunc2(low).toFixed(2),
+      high: trunc2(high).toFixed(2)
     });
   }
   return list;
