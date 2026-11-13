@@ -89,7 +89,7 @@
   ・換算係数が無い時：校正ガス濃度 ＝ 1st × 1.12〜1.6<br>
   ・換算係数が有る時：校正ガス濃度 ＝ 1st × 1.12〜1.6 ÷ 換算係数<br>
   ※結果は四捨五入せず、小数第3位以下を切り捨てて小数第2位まで表示します。<br>
-  ※出力の一覧は、ガス名の順 → 換算係数の小さい順に並び替えて表示します。
+  ※出力の一覧は、ガス名の順 → 換算係数の大きい順に並び替えて表示します。
 </div>
 
 <script>
@@ -277,7 +277,7 @@ function collectResults() {
   list.sort(function (a, b) {
     if (a.name < b.name) return -1;
     if (a.name > b.name) return 1;
-    return a.sk - b.sk;
+    return b.sk - a.sk;
   });
   return list;
 }
