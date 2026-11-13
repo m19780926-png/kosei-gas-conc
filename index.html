@@ -18,15 +18,17 @@
   label { display: block; font-size: 12px; color: #9fb0c9; margin: 12px 0 5px; letter-spacing: .05em; }
   select, input[type="number"], input[type="text"] { width: 100%; padding: 12px; font-size: 16px; border: 1px solid #2b3c5c; border-radius: 10px; background: #0b1425; color: #eef4ff; }
   select:focus, input:focus { outline: none; border-color: #38bdf8; box-shadow: 0 0 0 3px rgba(56,189,248,.25); }
-  .result { margin-top: 16px; background: #0b1425; border: 1px solid #22345a; border-radius: 12px; padding: 12px; }
-  .result .cap { font-size: 12px; color: #7dd3fc; font-weight: bold; letter-spacing: .08em; margin-bottom: 8px; }
+  .result { margin-top: 16px; background: #0a1322; border: 1px solid #2e4a7a; border-radius: 12px; padding: 14px; box-shadow: inset 0 0 24px rgba(56,189,248,.06); }
+  .result .cap { font-size: 13px; color: #7dd3fc; font-weight: bold; letter-spacing: .1em; margin-bottom: 10px; }
   .result .vals { display: flex; gap: 10px; flex-wrap: wrap; }
-  .result .val { flex: 1; min-width: 130px; background: #101d33; border: 1px solid #26375a; border-radius: 10px; padding: 10px 12px; }
-  .result .val .k { font-size: 12px; color: #8fa6c8; }
+  .result .val { flex: 1; min-width: 130px; border-radius: 10px; padding: 12px 14px; }
+  .val-low { background: linear-gradient(180deg, rgba(56,189,248,.16), rgba(56,189,248,.05)); border: 1.5px solid rgba(56,189,248,.65); }
+  .val-high { background: linear-gradient(180deg, rgba(251,191,36,.16), rgba(251,191,36,.05)); border: 1.5px solid rgba(251,191,36,.65); }
+  .result .val .k { font-size: 12px; color: #aebdd6; }
   .val .k { white-space: nowrap; }
-  .result .val .v { font-size: 24px; font-weight: bold; font-family: "Roboto Mono", "SF Mono", Consolas, monospace; letter-spacing: .02em; }
-  .v-low { color: #38bdf8; }
-  .v-high { color: #fbbf24; }
+  .result .val .v { font-size: 36px; font-weight: bold; font-family: "Roboto Mono", "SF Mono", Consolas, monospace; letter-spacing: .02em; line-height: 1.25; }
+  .v-low { color: #4cc3ff; text-shadow: 0 0 16px rgba(56,189,248,.55); }
+  .v-high { color: #ffc93c; text-shadow: 0 0 16px rgba(251,191,36,.5); }
   .result .none { font-size: 14px; color: #888; }
   #addBtn { width: 100%; padding: 15px; font-size: 16px; font-weight: bold; letter-spacing: .05em; background: linear-gradient(90deg, #2563eb, #0ea5e9); color: #fff; border: none; border-radius: 12px; cursor: pointer; box-shadow: 0 4px 14px rgba(14,165,233,.35); }
   #exportBtn { width: 100%; padding: 15px; font-size: 16px; font-weight: bold; letter-spacing: .05em; background: linear-gradient(90deg, #059669, #10b981); color: #fff; border: none; border-radius: 12px; cursor: pointer; margin-top: 10px; box-shadow: 0 4px 14px rgba(16,185,129,.3); }
@@ -35,6 +37,8 @@
   #exportPanel th, #exportPanel td { border: 1px solid #26375a; padding: 7px 4px; text-align: right; white-space: nowrap; }
   #exportPanel th { background: #122544; color: #bfe0ff; }
   #exportPanel td { font-family: "Roboto Mono", Consolas, monospace; }
+  #exportPanel td.num-low { color: #4cc3ff; font-weight: bold; font-size: 14px; }
+  #exportPanel td.num-high { color: #ffc93c; font-weight: bold; font-size: 14px; }
   #exportPanel td:first-child { font-family: inherit; }
   #exportPanel th:first-child, #exportPanel td:first-child { text-align: left; }
   #csvBtn, #copyBtn { padding: 10px 14px; font-size: 14px; border-radius: 10px; border: 1px solid #10b981; background: transparent; color: #34d399; cursor: pointer; margin-top: 12px; margin-right: 8px; }
@@ -104,8 +108,8 @@ function makeRow() {
     '<input type="number" class="in-factor" inputmode="decimal" step="any" placeholder="例：0.95">' +
     '<div class="result"><div class="cap">校正に使用できるガス濃度</div>' +
     '<div class="vals">' +
-    '<div class="val"><div class="k">1st×1.12〜</div><div class="v v-low">―</div></div>' +
-    '<div class="val"><div class="k">〜1st×1.6</div><div class="v v-high">―</div></div>' +
+    '<div class="val val-low"><div class="k">1st×1.12〜</div><div class="v v-low">―</div></div>' +
+    '<div class="val val-high"><div class="k">〜1st×1.6</div><div class="v v-high">―</div></div>' +
     "</div></div>";
 
   var sel = card.querySelector(".gas-sel");
@@ -202,7 +206,7 @@ document.getElementById("exportBtn").addEventListener("click", function () {
     var html = "<table><tr><th>ガス名</th><th>1st</th><th>換算係数</th><th>1st×1.12〜</th><th>〜1st×1.6</th></tr>";
     for (var i = 0; i < lastExport.length; i++) {
       var r = lastExport[i];
-      html += "<tr><td>" + r.name + "</td><td>" + r.first + "</td><td>" + r.factor + "</td><td>" + r.low + "</td><td>" + r.high + "</td></tr>";
+      html += "<tr><td>" + r.name + "</td><td>" + r.first + "</td><td>" + r.factor + "</td><td class=\"num-low\">" + r.low + "</td><td class=\"num-high\">" + r.high + "</td></tr>";
     }
     html += "</table>";
     body.innerHTML = html;
