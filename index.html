@@ -46,6 +46,9 @@
   #exportPanel th, #exportPanel td { border: 1px solid #26375a; padding: 7px 4px; text-align: right; white-space: nowrap; }
   #exportPanel th { background: #122544; color: #bfe0ff; }
   #exportPanel td { font-family: "Roboto Mono", Consolas, monospace; }
+  #exportPanel tr.gstart td { border-top: 3px solid #facc15; }
+  #exportPanel tr.geven td { background: rgba(125,211,252,.07); }
+  #exportPanel td:first-child { font-weight: bold; color: #facc15; }
   #exportPanel td.num-low { color: #f87171; font-weight: bold; font-size: 14px; }
   #exportPanel td.num-high { color: #f87171; font-weight: bold; font-size: 14px; }
   #exportPanel td:first-child { font-family: inherit; }
@@ -327,9 +330,18 @@ document.getElementById("exportBtn").addEventListener("click", function () {
     document.getElementById("copyBtn").style.display = "none";
   } else {
     var html = "<table><tr><th>ガス名</th><th>1st</th><th>換算係数</th><th>1st×1.12〜</th><th>〜1st×1.6</th></tr>";
+    var prevName = null;
+    var gIdx = -1;
     for (var i = 0; i < lastExport.length; i++) {
       var r = lastExport[i];
-      html += "<tr><td>" + r.name + "</td><td>" + r.first + "</td><td>" + r.factor + "</td><td class=\"num-low\">" + r.low + "</td><td class=\"num-high\">" + r.high + "</td></tr>";
+      var cls = "";
+      if (r.name !== prevName) {
+        gIdx++;
+        if (i > 0) cls = "gstart";
+        prevName = r.name;
+      }
+      if (gIdx % 2 === 1) cls = (cls + " geven").trim();
+      html += "<tr" + (cls ? ' class="' + cls + '"' : "") + "><td>" + r.name + "</td><td>" + r.first + "</td><td>" + r.factor + "</td><td class=\"num-low\">" + r.low + "</td><td class=\"num-high\">" + r.high + "</td></tr>";
     }
     html += "</table>";
     body.innerHTML = html;
