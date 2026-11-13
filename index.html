@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>校正ガス濃度 計算ツール</title>
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: sans-serif; margin: 0; padding: 16px; background: #f4f6f8; color: #222; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  .sub { font-size: 13px; color: #555; margin-bottom: 16px; line-height: 1.6; }
+  .card { background: #fff; border-radius: 10px; padding: 14px; margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,.12); }
+  .row-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+  .row-title { font-weight: bold; font-size: 15px; }
+  .del-btn { background: #e05353; color: #fff; border: none; border-radius: 6px; padding: 6px 12px; font-size: 13px; cursor: pointer; }
+  label { display: block; font-size: 13px; color: #444; margin: 10px 0 4px; }
+  select, input[type="number"] { width: 100%; padding: 10px; font-size: 16px; border: 1px solid #bbb; border-radius: 6px; background: #fff; }
+  .result { margin-top: 14px; background: #eef4fb; border-radius: 8px; padding: 12px; }
+  .result .cap { font-size: 13px; color: #33507a; margin-bottom: 6px; }
+  .result .vals { display: flex; gap: 12px; flex-wrap: wrap; }
+  .result .val { flex: 1; min-width: 130px; background: #fff; border: 1px solid #c8d8ee; border-radius: 6px; padding: 8px 10px; }
+  .result .val .k { font-size: 12px; color: #666; }
+  .result .val .v { font-size: 20px; font-weight: bold; }
+  .result .none { font-size: 14px; color: #888; }
+  #addBtn { width: 100%; padding: 14px; font-size: 16px; background: #2f6fd0; color: #fff; border: none; border-radius: 10px; cursor: pointer; }
+  #resetBtn { width: 100%; padding: 12px; font-size: 14px; background: #fff; color: #555; border: 1px solid #bbb; border-radius: 10px; cursor: pointer; margin-top: 10px; }
+  .note { font-size: 12px; color: #777; margin-top: 16px; line-height: 1.7; }
+</style>
+</head>
+<body>
+
+<h1>校正ガス濃度 計算ツール</h1>
+<div class="sub">
+  1stを入力すると、校正に使用できるガス濃度を表示します。<br>
+  換算係数がある場合は、換算係数も入力してください。
+</div>
+
+<div id="rows"></div>
+
+<button id="addBtn">＋ 行を追加</button>
+<button id="resetBtn">すべてクリア</button>
+
+<div class="note">
+  計算式<br>
+  ・換算係数が無い時：校正ガス濃度 ＝ 1st × 1.12〜1.6<br>
+  ・換算係数が有る時：校正ガス濃度 ＝ 1st × 1.12〜1.6 ÷ 換算係数<br>
+  ※結果は小数第2位まで表示します（表示上の四捨五入）。
+</div>
+
+<script>
+var GASES = ["CLF3", "HF", "HBR", "B2H6", "F2"];
+
+function fmt(n) {
+  if (!isFinite(n)) return "―";
+  return (Math.round(n * 100) / 100).toString();
+}
+
+function makeRow() {
+  var card = document.createElement("div");
+  card.className = "card";
+
+  var options = '<option value="">（ガス名を選択）</option>';
+  for (var i = 0; i < GASES.length; i++) {
+    options += '<option value="' + GASES[i] + '">' + GASES[i] + "</option>";
+  }
+  options += '<option value="__other__">その他（自由入力）</option>';
+
+  card.innerHTML =
+    '<div class="row-head"><span class="row-title">ガス</span>' +
+    '<button class="del-btn" type="button">削除</button></div>' +
+    '<label>ガス名</label>' +
+    '<select class="gas-sel">' + options + "</select>" +
+    '<input type="text" class="gas-free" placeholder="ガス名を入力" style="display:none;margin-top:8px;width:100%;padding:10px;font-size:16px;border:1px solid #bbb;border-radius:6px;">' +
+    '<label>1st</label>' +
+    '<input type="number" class="in-first" inputmode="decimal" step="any" placeholder="例：25">' +
+    '<label>換算係数（無い場合は空欄）</label>' +
+    '<input type="number" class="in-factor" inputmode="decimal" step="any" placeholder="例：0.95">' +
+    '<div class="result"><div class="cap">校正に使用できるガス濃度</div>' +
+    '<div class="vals">' +
+    '<div class="val"><div class="k">1.12 の時</div><div class="v v-low">―</div></div>' +
+    '<div class="val"><div class="k">1.6 の時</div><div class="v v-high">―</div></div>' +
+    "</div></div>";
+
+  var sel = card.querySelector(".gas-sel");
+  var free = card.querySelector(".gas-free");
+  sel.addEventListener("change", function () {
+    free.style.display = (sel.value === "__other__") ? "block" : "none";
+  });
+
+  card.querySelector(".del-btn").addEventListener("click", function () {
+    card.remove();
+  });
+
+  var inputs = card.querySelectorAll(".in-first, .in-factor");
+  for (var j = 0; j < inputs.length; j++) {
+    inputs[j].addEventListener("input", function () { calc(card); });
+  }
+  return card;
+}
+
+function calc(card) {
+  var first = parseFloat(card.querySelector(".in-first").value);
+  var factorRaw = card.querySelector(".in-factor").value;
+  var lowEl = card.querySelector(".v-low");
+  var highEl = card.querySelector(".v-high");
+
+  if (isNaN(first)) {
+    lowEl.textContent = "―";
+    highEl.textContent = "―";
+    return;
+  }
+  var low = first * 1.12;
+  var high = first * 1.6;
+  var factor = parseFloat(factorRaw);
+  if (factorRaw !== "" && !isNaN(factor)) {
+    if (factor === 0) {
+      lowEl.textContent = "係数0は不可";
+      highEl.textContent = "係数0は不可";
+      return;
+    }
+    low = low / factor;
+    high = high / factor;
+  }
+  lowEl.textContent = fmt(low);
+  highEl.textContent = fmt(high);
+}
+
+document.getElementById("addBtn").addEventListener("click", function () {
+  document.getElementById("rows").appendChild(makeRow());
+});
+
+document.getElementById("resetBtn").addEventListener("click", function () {
+  var rows = document.getElementById("rows");
+  rows.innerHTML = "";
+  rows.appendChild(makeRow());
+});
+
+// 初期表示は2行
+document.getElementById("rows").appendChild(makeRow());
+document.getElementById("rows").appendChild(makeRow());
+</script>
+
+</body>
+</html>
