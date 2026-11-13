@@ -177,8 +177,10 @@ function makeRow() {
   });
 
   card.querySelector(".add-factor-btn").addEventListener("click", function () {
-    card.querySelector(".factors").appendChild(makeFactorRow(card));
+    var fr = makeFactorRow(card);
+    card.querySelector(".factors").appendChild(fr);
     syncFactorDel(card);
+    fr.querySelector(".in-factor").focus();
   });
 
   card.querySelector(".in-first").addEventListener("input", function () { calc(card); });
