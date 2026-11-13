@@ -4,6 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>校正ガス濃度 計算ツール</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#0a1120">
+<link rel="icon" type="image/svg+xml" href="icon.svg">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 
 <style>
   * { box-sizing: border-box; }
@@ -269,6 +275,13 @@ document.getElementById("resetBtn").addEventListener("click", function () {
 // 初期表示は2行
 document.getElementById("rows").appendChild(makeRow());
 document.getElementById("rows").appendChild(makeRow());
+
+// PWA: Service Worker 登録
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", function () {
+    navigator.serviceWorker.register("sw.js").catch(function () {});
+  });
+}
 </script>
 
 </body>

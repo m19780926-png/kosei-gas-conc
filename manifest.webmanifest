@@ -1,0 +1,1 @@
+{"background_color":"#0a1120","description":"1stと換算係数から校正ガス濃度を計算するツール","display":"standalone","icons":[{"purpose":"any","sizes":"any","src":"icon.svg","type":"image/svg+xml"}],"lang":"ja","name":"校正ガス濃度 計算ツール","orientation":"portrait","scope":".","short_name":"校正ガス濃度","start_url":".","theme_color":"#0a1120"}
