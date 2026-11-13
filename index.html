@@ -168,9 +168,20 @@ function makeRow() {
 
   var sel = card.querySelector(".gas-sel");
   var free = card.querySelector(".gas-free");
+  function updateTitle() {
+    var name = "";
+    if (sel.value === "__other__") {
+      name = free.value.trim();
+    } else {
+      name = sel.value;
+    }
+    card.querySelector(".row-title").textContent = name || "ガス";
+  }
   sel.addEventListener("change", function () {
     free.style.display = (sel.value === "__other__") ? "block" : "none";
+    updateTitle();
   });
+  free.addEventListener("input", updateTitle);
 
   card.querySelector(".del-btn").addEventListener("click", function () {
     card.remove();
