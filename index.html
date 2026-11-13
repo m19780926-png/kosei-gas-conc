@@ -92,8 +92,8 @@ function makeRow() {
     '<input type="number" class="in-factor" inputmode="decimal" step="any" placeholder="例：0.95">' +
     '<div class="result"><div class="cap">校正に使用できるガス濃度</div>' +
     '<div class="vals">' +
-    '<div class="val"><div class="k">1st×1.12</div><div class="v v-low">―</div></div>' +
-    '<div class="val"><div class="k">1st×1.6</div><div class="v v-high">―</div></div>' +
+    '<div class="val"><div class="k">1st×1.12〜</div><div class="v v-low">―</div></div>' +
+    '<div class="val"><div class="k">〜1st×1.6</div><div class="v v-high">―</div></div>' +
     "</div></div>";
 
   var sel = card.querySelector(".gas-sel");
@@ -187,7 +187,7 @@ document.getElementById("exportBtn").addEventListener("click", function () {
     document.getElementById("csvBtn").style.display = "none";
     document.getElementById("copyBtn").style.display = "none";
   } else {
-    var html = "<table><tr><th>ガス名</th><th>1st</th><th>換算係数</th><th>1st×1.12</th><th>1st×1.6</th></tr>";
+    var html = "<table><tr><th>ガス名</th><th>1st</th><th>換算係数</th><th>1st×1.12〜</th><th>〜1st×1.6</th></tr>";
     for (var i = 0; i < lastExport.length; i++) {
       var r = lastExport[i];
       html += "<tr><td>" + r.name + "</td><td>" + r.first + "</td><td>" + r.factor + "</td><td>" + r.low + "</td><td>" + r.high + "</td></tr>";
@@ -203,7 +203,7 @@ document.getElementById("exportBtn").addEventListener("click", function () {
 
 document.getElementById("csvBtn").addEventListener("click", function () {
   if (lastExport.length === 0) return;
-  var lines = ["ガス名,1st,換算係数,1st×1.12,1st×1.6"];
+  var lines = ["ガス名,1st,換算係数,1st×1.12〜,〜1st×1.6"];
   for (var i = 0; i < lastExport.length; i++) {
     var r = lastExport[i];
     var nm = '"' + String(r.name).replace(/"/g, '""') + '"';
@@ -222,7 +222,7 @@ document.getElementById("copyBtn").addEventListener("click", function () {
   var lines = ["校正ガス濃度 一覧"];
   for (var i = 0; i < lastExport.length; i++) {
     var r = lastExport[i];
-    lines.push(r.name + "　1st：" + r.first + "　換算係数：" + r.factor + "　1st×1.12：" + r.low + "　1st×1.6：" + r.high);
+    lines.push(r.name + "　1st：" + r.first + "　換算係数：" + r.factor + "　1st×1.12〜：" + r.low + "　〜1st×1.6：" + r.high);
   }
   var text = lines.join("\n");
   if (navigator.clipboard && navigator.clipboard.writeText) {
