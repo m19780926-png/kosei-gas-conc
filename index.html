@@ -109,8 +109,24 @@ function makeFactorRow(card) {
   row.className = "factor-row";
   row.innerHTML =
     '<input type="number" class="in-factor" inputmode="decimal" step="any" placeholder="例：0.95">' +
-    '<button type="button" class="factor-del" style="display:none;">×</button>';
-  row.querySelector(".in-factor").addEventListener("input", function () { calc(card); });
+    '<button type="button" class="factor-del" tabindex="-1" style="display:none;">×</button>';
+  var inp = row.querySelector(".in-factor");
+  inp.addEventListener("input", function () { calc(card); });
+  inp.addEventListener("keydown", function (e) {
+    if (e.key === "Tab" && !e.shiftKey) {
+      var inputs = card.querySelectorAll(".in-factor");
+      var idx = Array.prototype.indexOf.call(inputs, inp);
+      e.preventDefault();
+      if (idx >= 0 && idx < inputs.length - 1) {
+        inputs[idx + 1].focus();
+      } else {
+        var fr = makeFactorRow(card);
+        card.querySelector(".factors").appendChild(fr);
+        syncFactorDel(card);
+        fr.querySelector(".in-factor").focus();
+      }
+    }
+  });
   row.querySelector(".factor-del").addEventListener("click", function () {
     row.remove();
     syncFactorDel(card);
