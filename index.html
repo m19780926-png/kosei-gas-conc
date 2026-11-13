@@ -7,32 +7,40 @@
 
 <style>
   * { box-sizing: border-box; }
-  body { font-family: sans-serif; margin: 0; padding: 16px; background: #f4f6f8; color: #222; }
-  h1 { font-size: 20px; margin: 0 0 4px; }
-  .sub { font-size: 13px; color: #555; margin-bottom: 16px; line-height: 1.6; }
-  .card { background: #fff; border-radius: 10px; padding: 14px; margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,.12); }
-  .row-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
-  .row-title { font-weight: bold; font-size: 15px; }
-  .del-btn { background: #e05353; color: #fff; border: none; border-radius: 6px; padding: 6px 12px; font-size: 13px; cursor: pointer; }
-  label { display: block; font-size: 13px; color: #444; margin: 10px 0 4px; }
-  select, input[type="number"] { width: 100%; padding: 10px; font-size: 16px; border: 1px solid #bbb; border-radius: 6px; background: #fff; }
-  .result { margin-top: 14px; background: #eef4fb; border-radius: 8px; padding: 12px; }
-  .result .cap { font-size: 13px; color: #33507a; margin-bottom: 6px; }
-  .result .vals { display: flex; gap: 12px; flex-wrap: wrap; }
-  .result .val { flex: 1; min-width: 130px; background: #fff; border: 1px solid #c8d8ee; border-radius: 6px; padding: 8px 10px; }
-  .result .val .k { font-size: 12px; color: #666; }
-  .result .val .v { font-size: 20px; font-weight: bold; }
-  .result .none { font-size: 14px; color: #888; }
-  #addBtn { width: 100%; padding: 14px; font-size: 16px; background: #2f6fd0; color: #fff; border: none; border-radius: 10px; cursor: pointer; }
-  #exportBtn { width: 100%; padding: 14px; font-size: 16px; background: #2e9e62; color: #fff; border: none; border-radius: 10px; cursor: pointer; margin-top: 10px; }
-  #exportPanel table { width: 100%; border-collapse: collapse; font-size: 12px; }
-  #exportPanel th, #exportPanel td { border: 1px solid #c8d8ee; padding: 7px 4px; text-align: right; white-space: nowrap; }
+  body { font-family: "Hiragino Kaku Gothic ProN", "Noto Sans JP", sans-serif; margin: 0 auto; max-width: 600px; padding: 20px 16px 32px; background: linear-gradient(180deg, #0a1120 0%, #0d1830 60%, #0a1428 100%); background-attachment: fixed; color: #e8eef7; min-height: 100vh; }
+  h1 { font-size: 22px; margin: 0 0 6px; letter-spacing: .06em; background: linear-gradient(90deg, #7dd3fc, #38bdf8 45%, #2dd4bf); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+  .sub { font-size: 13px; color: #93a5c4; margin-bottom: 18px; line-height: 1.7; }
+  .card { background: linear-gradient(180deg, #16233c, #111c30); border: 1px solid #26375a; border-radius: 14px; padding: 16px; margin-bottom: 14px; box-shadow: 0 6px 18px rgba(0,0,0,.35); }
+  .row-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+  .row-title { font-weight: bold; font-size: 15px; color: #bfe0ff; letter-spacing: .08em; }
+  .del-btn { background: transparent; color: #f87171; border: 1px solid #7f2d3a; border-radius: 8px; padding: 6px 12px; font-size: 13px; cursor: pointer; }
+  .del-btn:active { background: rgba(248,113,113,.15); }
+  label { display: block; font-size: 12px; color: #9fb0c9; margin: 12px 0 5px; letter-spacing: .05em; }
+  select, input[type="number"], input[type="text"] { width: 100%; padding: 12px; font-size: 16px; border: 1px solid #2b3c5c; border-radius: 10px; background: #0b1425; color: #eef4ff; }
+  select:focus, input:focus { outline: none; border-color: #38bdf8; box-shadow: 0 0 0 3px rgba(56,189,248,.25); }
+  .result { margin-top: 16px; background: #0b1425; border: 1px solid #22345a; border-radius: 12px; padding: 12px; }
+  .result .cap { font-size: 12px; color: #7dd3fc; font-weight: bold; letter-spacing: .08em; margin-bottom: 8px; }
+  .result .vals { display: flex; gap: 10px; flex-wrap: wrap; }
+  .result .val { flex: 1; min-width: 130px; background: #101d33; border: 1px solid #26375a; border-radius: 10px; padding: 10px 12px; }
+  .result .val .k { font-size: 12px; color: #8fa6c8; }
   .val .k { white-space: nowrap; }
-  #exportPanel th { background: #eef4fb; }
+  .result .val .v { font-size: 24px; font-weight: bold; font-family: "Roboto Mono", "SF Mono", Consolas, monospace; letter-spacing: .02em; }
+  .v-low { color: #38bdf8; }
+  .v-high { color: #fbbf24; }
+  .result .none { font-size: 14px; color: #888; }
+  #addBtn { width: 100%; padding: 15px; font-size: 16px; font-weight: bold; letter-spacing: .05em; background: linear-gradient(90deg, #2563eb, #0ea5e9); color: #fff; border: none; border-radius: 12px; cursor: pointer; box-shadow: 0 4px 14px rgba(14,165,233,.35); }
+  #exportBtn { width: 100%; padding: 15px; font-size: 16px; font-weight: bold; letter-spacing: .05em; background: linear-gradient(90deg, #059669, #10b981); color: #fff; border: none; border-radius: 12px; cursor: pointer; margin-top: 10px; box-shadow: 0 4px 14px rgba(16,185,129,.3); }
+  #addBtn:active, #exportBtn:active { transform: translateY(1px); }
+  #exportPanel table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  #exportPanel th, #exportPanel td { border: 1px solid #26375a; padding: 7px 4px; text-align: right; white-space: nowrap; }
+  #exportPanel th { background: #122544; color: #bfe0ff; }
+  #exportPanel td { font-family: "Roboto Mono", Consolas, monospace; }
+  #exportPanel td:first-child { font-family: inherit; }
   #exportPanel th:first-child, #exportPanel td:first-child { text-align: left; }
-  #csvBtn, #copyBtn { padding: 10px 14px; font-size: 14px; border-radius: 8px; border: 1px solid #2e9e62; background: #fff; color: #2e7d4f; cursor: pointer; margin-top: 12px; margin-right: 8px; }
-  #resetBtn { width: 100%; padding: 12px; font-size: 14px; background: #fff; color: #555; border: 1px solid #bbb; border-radius: 10px; cursor: pointer; margin-top: 10px; }
-  .note { font-size: 12px; color: #777; margin-top: 16px; line-height: 1.7; }
+  #csvBtn, #copyBtn { padding: 10px 14px; font-size: 14px; border-radius: 10px; border: 1px solid #10b981; background: transparent; color: #34d399; cursor: pointer; margin-top: 12px; margin-right: 8px; }
+  #csvBtn:active, #copyBtn:active { background: rgba(16,185,129,.15); }
+  #resetBtn { width: 100%; padding: 12px; font-size: 14px; background: transparent; color: #aebdd6; border: 1px solid #3b4c6b; border-radius: 12px; cursor: pointer; margin-top: 10px; }
+  .note { font-size: 12px; color: #7e90ad; margin-top: 20px; line-height: 1.8; border-top: 1px solid #22345a; padding-top: 14px; }
 </style>
 </head>
 <body>
@@ -89,7 +97,7 @@ function makeRow() {
     '<button class="del-btn" type="button">削除</button></div>' +
     '<label>ガス名</label>' +
     '<select class="gas-sel">' + options + "</select>" +
-    '<input type="text" class="gas-free" placeholder="ガス名を入力" style="display:none;margin-top:8px;width:100%;padding:10px;font-size:16px;border:1px solid #bbb;border-radius:6px;">' +
+    '<input type="text" class="gas-free" placeholder="ガス名を入力" style="display:none;margin-top:8px;">' +
     '<label>1st</label>' +
     '<input type="number" class="in-first" inputmode="decimal" step="any" placeholder="例：25">' +
     '<label>換算係数（無い場合は空欄）</label>' +
@@ -187,7 +195,7 @@ document.getElementById("exportBtn").addEventListener("click", function () {
   var panel = document.getElementById("exportPanel");
   var body = document.getElementById("exportBody");
   if (lastExport.length === 0) {
-    body.innerHTML = '<p style="font-size:14px;color:#888;">1stが入力されている行がありません。</p>';
+    body.innerHTML = '<p style="font-size:14px;color:#93a5c4;">1stが入力されている行がありません。</p>';
     document.getElementById("csvBtn").style.display = "none";
     document.getElementById("copyBtn").style.display = "none";
   } else {
