@@ -475,14 +475,11 @@ function chartBlock(grp, idx) {
   for (var pi = 0; pi < plans.length; pi++) {
     var pg2 = plans[pi];
     var mark = pi < marks.length ? marks[pi] : "(" + (pi + 1) + ")";
-    var rangeTxt = pg2.count >= 2
-      ? "（共通範囲 " + pg2.wmin.toFixed(2) + "〜" + pg2.wmax.toFixed(2) + "）"
-      : "（範囲 " + pg2.wmin.toFixed(2) + "〜" + pg2.wmax.toFixed(2) + "）";
     var flist = "";
     for (var fi = 0; fi < pg2.factors.length; fi++) flist += (fi ? "、" : "") + fmtF(pg2.factors[fi]);
-    planHtml += '<div class="plan-line">' + mark + ' 推奨濃度 <span class="rec">' + pg2.rec.toFixed(2) + "</span>" + rangeTxt + " → 係数 " + flist + "</div>";
+    planHtml += '<div class="plan-line">' + mark + ' 校正ガス濃度 <span class="rec">' + pg2.rec.toFixed(2) + "</span> → 係数 " + flist + "</div>";
   }
-  planHtml += '<div class="plan-note">※推奨濃度は共通範囲の上限近く（上限−幅の10%）で、1st×1.6に近い高い濃度です</div></div>';
+  planHtml += '<div class="plan-note">※ガス校正濃度は共通範囲の上限近くで1st×1.6付近の濃度です</div></div>';
   return '<div class="chart-block" data-gidx="' + idx + '">' +
     '<div class="chart-title">' + grp.name + " ・ 1st = " + grp.first + '</div>' +
     '<div class="chart-note">横棒：その係数で使える濃度範囲 ／ 緑の帯：まとめて校正できる共通範囲</div>' +
