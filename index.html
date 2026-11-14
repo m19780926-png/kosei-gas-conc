@@ -67,8 +67,12 @@
   #exportPanel td.num-high { color: #f87171; font-weight: bold; font-size: 14px; }
   #exportPanel td:first-child { font-family: inherit; }
   #exportPanel th:first-child, #exportPanel td:first-child { text-align: left; }
-  #csvBtn, #copyBtn, #graphBtn { padding: 10px 14px; font-size: 14px; border-radius: 10px; border: 1px solid #10b981; background: transparent; color: #34d399; cursor: pointer; margin-top: 12px; margin-right: 8px; }
-  #csvBtn:active, #copyBtn:active, #graphBtn:active { background: rgba(16,185,129,.15); }
+  .gas-csv, .gas-copy, .gas-graph { padding: 10px 14px; font-size: 14px; border-radius: 10px; border: 1px solid #10b981; background: transparent; color: #34d399; cursor: pointer; margin-top: 12px; margin-right: 8px; }
+  .gas-csv:active, .gas-copy:active, .gas-graph:active { background: rgba(16,185,129,.15); }
+  .gas-block { border: 1.5px solid #22385c; border-radius: 14px; padding: 14px; margin-bottom: 18px; background: rgba(255,255,255,.02); }
+  .gas-block:last-child { margin-bottom: 0; }
+  .gas-head { font-size: 17px; font-weight: bold; color: #dbe7f7; margin-bottom: 10px; }
+  .gas-head span { color: #facc15; }
   #resetBtn { width: 100%; padding: 12px; font-size: 14px; background: transparent; color: #aebdd6; border: 1px solid #3b4c6b; border-radius: 12px; cursor: pointer; margin-top: 10px; }
   .note { font-size: 12px; color: #7e90ad; margin-top: 20px; line-height: 1.8; border-top: 1px solid #22345a; padding-top: 14px; }
 
@@ -100,12 +104,7 @@
 <button id="resetBtn">すべてクリア</button>
 
 <div id="exportPanel" class="card" style="display:none;">
-  <div class="row-head"><span class="row-title">校正ガス濃度 一覧</span></div>
   <div id="exportBody"></div>
-  <div id="graphArea"></div>
-  <button id="csvBtn" type="button">CSVで保存</button>
-  <button id="copyBtn" type="button">テキストをコピー</button>
-  <button id="graphBtn" type="button">グラフを画像で保存</button>
 </div>
 
 <div class="note">
@@ -346,7 +345,6 @@ function fmtF(x) { return String(Math.round(x * 1000) / 1000); }
 var chartGroups = [];
 
 function buildCharts(list) {
-  chartGroups = [];
   var groups = [];
   var gmap = {};
   var hasExcluded = false;
@@ -550,67 +548,87 @@ function bindConcInputs() {
 
 var lastExport = [];
 
+var gasData = [];
+
+function safeName(s) { return String(s).replace(/[\\/:*?"<>|\s　]/g, "_"); }
+
 document.getElementById("exportBtn").addEventListener("click", function () {
   lastExport = collectResults();
   var panel = document.getElementById("exportPanel");
   var body = document.getElementById("exportBody");
+  gasData = [];
+  chartGroups = [];
   if (lastExport.length === 0) {
     body.innerHTML = '<p style="font-size:14px;color:#93a5c4;">1stが入力されている行がありません。</p>';
-    document.getElementById("graphArea").innerHTML = "";
-    document.getElementById("csvBtn").style.display = "none";
-    document.getElementById("copyBtn").style.display = "none";
-    document.getElementById("graphBtn").style.display = "none";
   } else {
-    var html = "<table><tr><th>ガス名</th><th>1st</th><th>換算係数</th><th>1st×1.12〜</th><th>〜1st×1.6</th></tr>";
-    var prevName = null;
-    var gIdx = -1;
+    var gases = [], byGas = {};
     for (var i = 0; i < lastExport.length; i++) {
-      var r = lastExport[i];
-      var cls = "";
-      if (r.name !== prevName) {
-        gIdx++;
-        if (i > 0) cls = "gstart";
-        prevName = r.name;
-      }
-      if (gIdx % 2 === 1) cls = (cls + " geven").trim();
-      html += "<tr" + (cls ? ' class="' + cls + '"' : "") + "><td>" + r.name + "</td><td>" + r.first + "</td><td>" + r.factor + "</td><td class=\"num-low\">" + r.low + "</td><td class=\"num-high\">" + r.high + "</td></tr>";
+      var r0 = lastExport[i];
+      if (!byGas[r0.name]) { byGas[r0.name] = []; gases.push(r0.name); }
+      byGas[r0.name].push(r0);
     }
-    html += "</table>";
+    var html = "";
+    for (var gi = 0; gi < gases.length; gi++) {
+      var gname = gases[gi];
+      var rows = byGas[gname];
+      gasData.push({ name: gname, rows: rows });
+      html += '<div class="gas-block" data-gi="' + gi + '">';
+      html += '<div class="gas-head">校正ガス濃度一覧 <span>' + gname + "</span></div>";
+      html += "<table><tr><th>ガス名</th><th>1st</th><th>換算係数</th><th>1st×1.12〜</th><th>〜1st×1.6</th></tr>";
+      for (var k = 0; k < rows.length; k++) {
+        var r = rows[k];
+        html += "<tr><td>" + r.name + "</td><td>" + r.first + "</td><td>" + r.factor + '</td><td class="num-low">' + r.low + '</td><td class="num-high">' + r.high + "</td></tr>";
+      }
+      html += "</table>";
+      html += buildCharts(rows);
+      html += '<div><button type="button" class="gas-csv" data-gi="' + gi + '">CSVで保存</button>' +
+        '<button type="button" class="gas-copy" data-gi="' + gi + '">テキストをコピー</button>' +
+        '<button type="button" class="gas-graph" data-gi="' + gi + '">グラフを画像で保存</button></div>';
+      html += "</div>";
+    }
     body.innerHTML = html;
-    document.getElementById("graphArea").innerHTML = buildCharts(lastExport);
     bindConcInputs();
-    document.getElementById("csvBtn").style.display = "";
-    document.getElementById("copyBtn").style.display = "";
-    document.getElementById("graphBtn").style.display = "";
+    var csvBtns = panel.querySelectorAll(".gas-csv");
+    for (var a = 0; a < csvBtns.length; a++) csvBtns[a].addEventListener("click", function () { downloadGasCSV(gasData[Number(this.getAttribute("data-gi"))]); });
+    var copyBtns = panel.querySelectorAll(".gas-copy");
+    for (var b = 0; b < copyBtns.length; b++) copyBtns[b].addEventListener("click", function () { copyGasText(gasData[Number(this.getAttribute("data-gi"))]); });
+    var graphBtns = panel.querySelectorAll(".gas-graph");
+    for (var c = 0; c < graphBtns.length; c++) graphBtns[c].addEventListener("click", function () {
+      var gi2 = Number(this.getAttribute("data-gi"));
+      saveGasGraph(this.closest(".gas-block"), gasData[gi2].name);
+    });
   }
   panel.style.display = "block";
   panel.scrollIntoView({ behavior: "smooth" });
 });
 
-document.getElementById("csvBtn").addEventListener("click", function () {
-  if (lastExport.length === 0) return;
+function stampNow() {
+  var now = new Date();
+  function pad(n) { return (n < 10 ? "0" : "") + n; }
+  return now.getFullYear() + pad(now.getMonth() + 1) + pad(now.getDate()) + pad(now.getHours()) + pad(now.getMinutes());
+}
+
+function downloadGasCSV(gd) {
+  if (!gd || !gd.rows.length) return;
   var lines = ["ガス名,1st,換算係数,1st×1.12〜,〜1st×1.6"];
-  for (var i = 0; i < lastExport.length; i++) {
-    var r = lastExport[i];
+  for (var i = 0; i < gd.rows.length; i++) {
+    var r = gd.rows[i];
     var nm = '"' + String(r.name).replace(/"/g, '""') + '"';
     lines.push(nm + "," + r.first + "," + r.factor + "," + r.low + "," + r.high);
   }
   var blob = new Blob(["\uFEFF" + lines.join("\r\n")], { type: "text/csv" });
-  var now = new Date();
-  function pad(n) { return (n < 10 ? "0" : "") + n; }
-  var stamp = now.getFullYear() + pad(now.getMonth() + 1) + pad(now.getDate()) + pad(now.getHours()) + pad(now.getMinutes());
   var a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
-  a.download = stamp + "_kosei-gas-list.csv";
+  a.download = stampNow() + "_kosei-gas-list_" + safeName(gd.name) + ".csv";
   a.click();
   URL.revokeObjectURL(a.href);
-});
+}
 
-document.getElementById("copyBtn").addEventListener("click", function () {
-  if (lastExport.length === 0) return;
+function copyGasText(gd) {
+  if (!gd || !gd.rows.length) return;
   var lines = ["校正ガス濃度 一覧"];
-  for (var i = 0; i < lastExport.length; i++) {
-    var r = lastExport[i];
+  for (var i = 0; i < gd.rows.length; i++) {
+    var r = gd.rows[i];
     lines.push(r.name + "　1st：" + r.first + "　換算係数：" + r.factor + "　1st×1.12〜：" + r.low + "　〜1st×1.6：" + r.high);
   }
   var text = lines.join("\n");
@@ -625,11 +643,10 @@ document.getElementById("copyBtn").addEventListener("click", function () {
     document.body.removeChild(ta);
     alert("コピーしました");
   }
-});
+}
 
-
-document.getElementById("graphBtn").addEventListener("click", function () {
-  var blocks = document.querySelectorAll("#graphArea .chart-block");
+function saveGasGraph(blockEl, gasName) {
+  var blocks = blockEl ? blockEl.querySelectorAll(".chart-block") : [];
   if (!blocks.length) { alert("グラフがありません"); return; }
   var W = 760, pad = 28, gap = 30;
   var items = [];
@@ -703,19 +720,16 @@ document.getElementById("graphBtn").addEventListener("click", function () {
       ctx.drawImage(img, pad, yy, W - pad * 2, it.svgH);
       URL.revokeObjectURL(url);
       if (--pending === 0) {
-        var now = new Date();
-        function p(n) { return (n < 10 ? "0" : "") + n; }
-        var stamp = now.getFullYear() + p(now.getMonth() + 1) + p(now.getDate()) + p(now.getHours()) + p(now.getMinutes());
         var a = document.createElement("a");
         a.href = canvas.toDataURL("image/png");
-        a.download = stamp + "_kosei-gas-graph.png";
+        a.download = stampNow() + "_kosei-gas-graph_" + safeName(gasName) + ".png";
         a.click();
       }
     };
     img.src = url;
     y += it.h + gap;
   });
-});
+}
 
 document.getElementById("resetBtn").addEventListener("click", function () {
   var rows = document.getElementById("rows");
