@@ -26,6 +26,17 @@
   select:focus, input:focus { outline: none; border-color: #38bdf8; box-shadow: 0 0 0 3px rgba(56,189,248,.25); }
   #rows .card { overflow: hidden; }
   #rows .row-title { font-size: 23px; color: #facc15; letter-spacing: .04em; text-shadow: 0 0 14px rgba(250,204,21,.4); }
+  #rows .row-head { justify-content: flex-start; cursor: pointer; }
+  #rows .del-btn { margin-left: auto; }
+  .toggle-mark { color: #93a5c4; font-size: 14px; margin-right: 8px; }
+  .row-summary { display: none; margin-left: 12px; font-size: 13.5px; color: #c8d5eb; }
+  .card.closed .row-summary { display: inline; }
+  .card.closed .card-body { display: none; }
+  #rows .card { scroll-margin-top: 84px; }
+  #chipBar { position: sticky; top: 0; z-index: 60; display: flex; flex-wrap: wrap; gap: 8px; padding: 10px 2px; background: rgba(10,17,32,.94); }
+  #chipBar:empty { display: none; }
+  .chip { padding: 7px 14px; border-radius: 999px; border: 1px solid #26375a; background: #17294a; color: #dbe7f7; font-size: 14px; font-weight: bold; cursor: pointer; font-family: inherit; }
+  .chip:active { background: #1f3a66; }
   #rows .card::before { content: ""; display: block; height: 12px; margin: -16px -16px 14px; background: repeating-linear-gradient(45deg, #facc15 0 14px, #141414 14px 28px); }
   .result { margin-top: 16px; background: #0a1322; border: 1px solid rgba(248,113,113,.4); border-radius: 12px; padding: 14px; box-shadow: inset 0 0 24px rgba(248,113,113,.07); }
   .result .cap { font-size: 13px; color: #fca5a5; font-weight: bold; letter-spacing: .1em; margin-bottom: 10px; }
@@ -97,6 +108,7 @@
   換算係数がある場合は、換算係数も入力してください。
 </div>
 
+<div id="chipBar"></div>
 <div id="rows"></div>
 
 <button id="addBtn">＋ ガス名を追加</button>
@@ -185,8 +197,10 @@ function makeRow() {
   options += '<option value="__other__">その他（自由入力）</option>';
 
   card.innerHTML =
-    '<div class="row-head"><span class="row-title">ガス</span>' +
+    '<div class="row-head"><span class="toggle-mark">▼</span><span class="row-title">ガス</span>' +
+    '<span class="row-summary"></span>' +
     '<button class="del-btn" type="button">削除</button></div>' +
+    '<div class="card-body">' +
     '<label>ガス名</label>' +
     '<select class="gas-sel">' + options + "</select>" +
     '<input type="text" class="gas-free" placeholder="ガス名を入力" style="display:none;margin-top:8px;">' +
@@ -203,7 +217,7 @@ function makeRow() {
     '<div class="val val-low"><div class="k">1st×1.12〜</div><div class="v v-low">―</div></div>' +
     '<div class="val val-high"><div class="k">〜1st×1.6</div><div class="v v-high">―</div></div>' +
     "</div></div>" +
-    "</div></div>";
+    "</div></div></div>";
 
   card.querySelector(".factors").appendChild(makeFactorRow(card));
 
@@ -217,6 +231,7 @@ function makeRow() {
       name = sel.value;
     }
     card.querySelector(".row-title").textContent = name || "ガス";
+    refreshChips();
   }
   sel.addEventListener("change", function () {
     free.style.display = (sel.value === "__other__") ? "block" : "none";
@@ -224,8 +239,15 @@ function makeRow() {
   });
   free.addEventListener("input", updateTitle);
 
-  card.querySelector(".del-btn").addEventListener("click", function () {
+  card.querySelector(".del-btn").addEventListener("click", function (e) {
+    e.stopPropagation();
     card.remove();
+    refreshChips();
+  });
+
+  card.querySelector(".row-head").addEventListener("click", function () {
+    var closed = card.classList.toggle("closed");
+    card.querySelector(".toggle-mark").textContent = closed ? "▶" : "▼";
   });
 
   card.querySelector(".add-factor-btn").addEventListener("click", function () {
@@ -240,7 +262,50 @@ function makeRow() {
   card.querySelector(".chk-result").addEventListener("change", function () {
     card.querySelector(".result").style.display = this.checked ? "" : "none";
   });
+  updateSummary(card);
   return card;
+}
+
+function updateSummary(card) {
+  var sumEl = card.querySelector(".row-summary");
+  if (!sumEl) return;
+  var first = parseFloat(card.querySelector(".in-first").value);
+  if (isNaN(first)) { sumEl.textContent = "未入力"; return; }
+  var eff = getFactors(card);
+  var txt = "1st = " + fmtF(first) + " ・ 係数 " + (eff.length ? eff.length + "個" : "なし");
+  var vs = card.querySelectorAll(".groups .v");
+  var mn = Infinity, mx = -Infinity;
+  for (var i = 0; i < vs.length; i++) {
+    var n = parseFloat(vs[i].textContent);
+    if (isFinite(n)) { if (n < mn) mn = n; if (n > mx) mx = n; }
+  }
+  if (mn !== Infinity) txt += " ・ 結果 " + mn.toFixed(2) + "〜" + mx.toFixed(2);
+  sumEl.textContent = txt;
+}
+
+function setCardOpen(card, open) {
+  card.classList.toggle("closed", !open);
+  card.querySelector(".toggle-mark").textContent = open ? "▼" : "▶";
+}
+
+function refreshChips() {
+  var bar = document.getElementById("chipBar");
+  if (!bar) return;
+  bar.innerHTML = "";
+  var cards = document.querySelectorAll("#rows .card");
+  for (var i = 0; i < cards.length; i++) {
+    (function (card) {
+      var chip = document.createElement("button");
+      chip.type = "button";
+      chip.className = "chip";
+      chip.textContent = card.querySelector(".row-title").textContent;
+      chip.addEventListener("click", function () {
+        setCardOpen(card, true);
+        card.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+      bar.appendChild(chip);
+    })(cards[i]);
+  }
 }
 
 function calc(card) {
@@ -253,6 +318,7 @@ function calc(card) {
       '<div class="val val-low"><div class="k">1st×1.12〜</div><div class="v v-low">―</div></div>' +
       '<div class="val val-high"><div class="k">〜1st×1.6</div><div class="v v-high">―</div></div>' +
       "</div></div>";
+    updateSummary(card);
     return;
   }
 
@@ -285,10 +351,14 @@ function calc(card) {
       "</div></div>";
   }
   groupsEl.innerHTML = html;
+  updateSummary(card);
 }
 
 document.getElementById("addBtn").addEventListener("click", function () {
+  var cards = document.querySelectorAll("#rows .card");
+  for (var i = 0; i < cards.length; i++) setCardOpen(cards[i], false);
   document.getElementById("rows").appendChild(makeRow());
+  refreshChips();
 });
 
 function collectResults() {
@@ -735,11 +805,13 @@ document.getElementById("resetBtn").addEventListener("click", function () {
   var rows = document.getElementById("rows");
   rows.innerHTML = "";
   rows.appendChild(makeRow());
+  refreshChips();
   document.getElementById("exportPanel").style.display = "none";
 });
 
 // 初期表示は1行
 document.getElementById("rows").appendChild(makeRow());
+refreshChips();
 
 // PWA: Service Worker 登録
 if ("serviceWorker" in navigator) {
