@@ -59,6 +59,11 @@
   .conc-result { margin: 8px 0 4px; padding: 11px 12px; border-radius: 10px; font-size: 15px; font-weight: bold; border: 1.5px solid #facc15; background: rgba(250,204,21,.12); color: #e8eef7; }
   .conc-result .cf { color: #fde047; }
   .conc-result.none { border-color: #7f2d3a; background: rgba(248,113,113,.08); color: #fca5a5; }
+  .plan-box { margin-top: 12px; border: 1.5px solid #34d399; background: rgba(52,211,153,.07); border-radius: 12px; padding: 12px 14px; }
+  .plan-head { color: #34d399; font-weight: bold; font-size: 15px; margin-bottom: 4px; }
+  .plan-line { font-size: 14px; line-height: 1.9; color: #e8eef7; }
+  .plan-line .rec { color: #fde047; font-weight: bold; }
+  .plan-note { font-size: 11px; color: #93a5c4; margin-top: 6px; }
   #exportPanel td.num-high { color: #f87171; font-weight: bold; font-size: 14px; }
   #exportPanel td:first-child { font-family: inherit; }
   #exportPanel th:first-child, #exportPanel td:first-child { text-align: left; }
@@ -362,6 +367,34 @@ function buildCharts(list) {
   return out;
 }
 
+
+function planGroups(ranges) {
+  var rest = ranges.slice();
+  var groups = [];
+  while (rest.length) {
+    var anchor = rest[0];
+    for (var i = 1; i < rest.length; i++) if (rest[i].low > anchor.low) anchor = rest[i];
+    var p = anchor.low;
+    var covered = [], next = [];
+    for (var j = 0; j < rest.length; j++) {
+      if (rest[j].low <= p && p <= rest[j].high) covered.push(rest[j]); else next.push(rest[j]);
+    }
+    var wmin = -Infinity, wmax = Infinity;
+    for (var k = 0; k < covered.length; k++) {
+      if (covered[k].low > wmin) wmin = covered[k].low;
+      if (covered[k].high < wmax) wmax = covered[k].high;
+    }
+    var rec = trunc2(wmax - (wmax - wmin) * 0.1);
+    var fs = [];
+    for (var m = 0; m < covered.length; m++) if (fs.indexOf(covered[m].f) === -1) fs.push(covered[m].f);
+    fs.sort(function (a, b) { return a - b; });
+    groups.push({ wmin: wmin, wmax: wmax, rec: rec, factors: fs, count: covered.length });
+    rest = next;
+  }
+  groups.sort(function (a, b) { return a.rec - b.rec; });
+  return groups;
+}
+
 function renderChartSVG(grp, conc) {
   var ranges = grp.ranges;
   var maxHigh = 0;
@@ -378,7 +411,10 @@ function renderChartSVG(grp, conc) {
   var top = (conc !== null && conc <= xmax) ? 22 : 8;
   var rowH = 36, barH = 18;
   var rowsH = ranges.length * rowH;
-  var axisY = top + rowsH + 16;
+  var plans = planGroups(ranges);
+  var hasBand = false;
+  for (var pb = 0; pb < plans.length; pb++) if (plans[pb].count >= 2) hasBand = true;
+  var axisY = top + rowsH + (hasBand ? 28 : 16);
   var H = axisY + 22;
 
   function isHit(rg) { return conc !== null && rg.low <= conc && conc <= rg.high; }
@@ -394,6 +430,18 @@ function renderChartSVG(grp, conc) {
     s += '<line x1="' + cx + '" y1="' + top + '" x2="' + cx + '" y2="' + (top + rowsH) + '" stroke="#facc15" stroke-width="2" stroke-dasharray="5 4"/>';
     var lx = Math.max(L + 14, Math.min(R - 14, cx));
     s += '<text x="' + lx + '" y="' + (top - 8) + '" font-size="10.5" font-weight="bold" fill="#fde047" text-anchor="middle">' + fmtF(conc) + '</text>';
+  }
+  for (var b2 = 0; b2 < plans.length; b2++) {
+    var pg = plans[b2];
+    if (pg.count < 2) continue;
+    var bx1 = X(pg.wmin), bx2 = X(pg.wmax);
+    s += '<rect x="' + bx1 + '" y="' + top + '" width="' + Math.max(bx2 - bx1, 1) + '" height="' + rowsH + '" fill="rgba(52,211,153,.13)" stroke="#34d399" stroke-opacity=".7" stroke-width="1"/>';
+    var blab = pg.wmin.toFixed(2) + "〜" + pg.wmax.toFixed(2);
+    if (bx2 - bx1 > blab.length * 6 + 8) {
+      s += '<text x="' + ((bx1 + bx2) / 2) + '" y="' + (top + rowsH + 13) + '" font-size="9.5" fill="#34d399" text-anchor="middle">' + blab + '</text>';
+    }
+    var rcx = X(pg.rec);
+    s += '<polygon points="' + (rcx - 4.5) + "," + top + " " + (rcx + 4.5) + "," + top + " " + rcx + "," + (top + 5.5) + '" fill="#facc15"/>';
   }
   for (var i2 = 0; i2 < ranges.length; i2++) {
     var rg = ranges[i2];
@@ -421,12 +469,26 @@ function renderChartSVG(grp, conc) {
 }
 
 function chartBlock(grp, idx) {
+  var plans = planGroups(grp.ranges);
+  var marks = ["①", "②", "③", "④", "⑤", "⑥", "⑦", "⑧", "⑨", "⑩"];
+  var planHtml = '<div class="plan-box"><div class="plan-head">まとめ：校正ガス濃度は ' + plans.length + 'つ でOK</div>';
+  for (var pi = 0; pi < plans.length; pi++) {
+    var pg2 = plans[pi];
+    var mark = pi < marks.length ? marks[pi] : "(" + (pi + 1) + ")";
+    var rangeTxt = pg2.count >= 2
+      ? "（共通範囲 " + pg2.wmin.toFixed(2) + "〜" + pg2.wmax.toFixed(2) + "）"
+      : "（範囲 " + pg2.wmin.toFixed(2) + "〜" + pg2.wmax.toFixed(2) + "）";
+    var flist = "";
+    for (var fi = 0; fi < pg2.factors.length; fi++) flist += (fi ? "、" : "") + fmtF(pg2.factors[fi]);
+    planHtml += '<div class="plan-line">' + mark + ' 推奨濃度 <span class="rec">' + pg2.rec.toFixed(2) + "</span>" + rangeTxt + " → 係数 " + flist + "</div>";
+  }
+  planHtml += '<div class="plan-note">※推奨濃度は共通範囲の上限近く（上限−幅の10%）で、1st×1.6に近い高い濃度です</div></div>';
   return '<div class="chart-block" data-gidx="' + idx + '">' +
     '<div class="chart-title">' + grp.name + " ・ 1st = " + grp.first + '</div>' +
-    '<div class="chart-note">横棒：その係数で使える濃度範囲</div>' +
+    '<div class="chart-note">横棒：その係数で使える濃度範囲 ／ 緑の帯：まとめて校正できる共通範囲</div>' +
     '<div class="conc-row"><label>今のガス濃度は？</label><input type="number" class="conc-input" step="any" inputmode="decimal" placeholder="濃度"></div>' +
     '<div class="conc-result" style="display:none;"></div>' +
-    '<div class="svg-wrap">' + renderChartSVG(grp, null) + "</div></div>";
+    '<div class="svg-wrap">' + renderChartSVG(grp, null) + "</div>" + planHtml + "</div>";
 }
 
 function bindConcInputs() {
@@ -559,8 +621,13 @@ document.getElementById("graphBtn").addEventListener("click", function () {
     var svgH = (W - pad * 2) * vb[3] / vb[2];
     var res = b.querySelector(".conc-result");
     var resText = (res && res.style.display !== "none") ? res.textContent : "";
-    var h = 34 + (resText ? 30 : 0) + 8 + svgH;
-    items.push({ title: b.querySelector(".chart-title").textContent, svg: svg, svgH: svgH, resText: resText, h: h });
+    var planHead = b.querySelector(".plan-head");
+    var planLines = [];
+    var plEls = b.querySelectorAll(".plan-line");
+    for (var q = 0; q < plEls.length; q++) planLines.push(plEls[q].textContent);
+    var planH = planHead ? (30 + planLines.length * 25 + 6) : 0;
+    var h = 34 + (resText ? 30 : 0) + 8 + svgH + planH;
+    items.push({ title: b.querySelector(".chart-title").textContent, svg: svg, svgH: svgH, resText: resText, planHead: planHead ? planHead.textContent : "", planLines: planLines, planH: planH, h: h });
     totalH += h + gap;
   }
   totalH += pad - gap;
@@ -592,6 +659,22 @@ document.getElementById("graphBtn").addEventListener("click", function () {
       yy += 30;
     }
     yy += 8;
+    if (it.planHead) {
+      var py = yy + it.svgH + 10;
+      ctx.fillStyle = "#34d399";
+      ctx.font = "bold 17px sans-serif";
+      ctx.fillText(it.planHead, pad, py);
+      py += 30;
+      ctx.font = "15px sans-serif";
+      for (var li = 0; li < it.planLines.length; li++) {
+        ctx.fillStyle = "#e8eef7";
+        var fs = 15;
+        ctx.font = fs + "px sans-serif";
+        while (ctx.measureText(it.planLines[li]).width > W - pad * 2 && fs > 10) { fs--; ctx.font = fs + "px sans-serif"; }
+        ctx.fillText(it.planLines[li], pad, py);
+        py += 25;
+      }
+    }
     var xml = new XMLSerializer().serializeToString(it.svg);
     if (xml.indexOf("xmlns=") === -1) xml = xml.replace("<svg", '<svg xmlns="http://www.w3.org/2000/svg"');
     var url = URL.createObjectURL(new Blob([xml], { type: "image/svg+xml;charset=utf-8" }));
