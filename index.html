@@ -59,8 +59,8 @@
   .conc-result { margin: 8px 0 4px; padding: 11px 12px; border-radius: 10px; font-size: 15px; font-weight: bold; border: 1.5px solid #facc15; background: rgba(250,204,21,.12); color: #e8eef7; }
   .conc-result .cf { color: #fde047; }
   .conc-result.none { border-color: #7f2d3a; background: rgba(248,113,113,.08); color: #fca5a5; }
-  .plan-box { margin-top: 12px; border: 1.5px solid #34d399; background: rgba(52,211,153,.07); border-radius: 12px; padding: 12px 14px; }
-  .plan-head { color: #34d399; font-weight: bold; font-size: 15px; margin-bottom: 4px; }
+  .plan-box { margin-top: 12px; border: 1.5px solid #2b4a6b; background: rgba(125,211,252,.05); border-radius: 12px; padding: 12px 14px; }
+  .plan-head { color: #e8eef7; font-weight: bold; font-size: 15px; margin-bottom: 4px; }
   .plan-line { font-size: 14px; line-height: 1.9; color: #e8eef7; }
   .plan-line .rec { color: #fde047; font-weight: bold; }
   .plan-note { font-size: 11px; color: #93a5c4; margin-top: 6px; }
@@ -368,27 +368,43 @@ function buildCharts(list) {
 }
 
 
+var GROUP_COLORS = [
+  { main: "#34d399", dark: "#0a382a", light: "#6ee7b7" },
+  { main: "#38bdf8", dark: "#0c2e42", light: "#7dd3fc" },
+  { main: "#fb923c", dark: "#402106", light: "#fdba74" },
+  { main: "#a78bfa", dark: "#2a1e4a", light: "#c4b5fd" },
+  { main: "#f472b6", dark: "#42102a", light: "#f9a8d4" },
+  { main: "#facc15", dark: "#403704", light: "#fde047" },
+  { main: "#f87171", dark: "#5a2028", light: "#fca5a5" }
+];
+
 function planGroups(ranges) {
-  var rest = ranges.slice();
+  var rest = [];
+  for (var i0 = 0; i0 < ranges.length; i0++) rest.push(i0);
   var groups = [];
   while (rest.length) {
     var anchor = rest[0];
-    for (var i = 1; i < rest.length; i++) if (rest[i].low > anchor.low) anchor = rest[i];
-    var p = anchor.low;
+    for (var i = 1; i < rest.length; i++) if (ranges[rest[i]].low > ranges[anchor].low) anchor = rest[i];
+    var p = ranges[anchor].low;
     var covered = [], next = [];
     for (var j = 0; j < rest.length; j++) {
-      if (rest[j].low <= p && p <= rest[j].high) covered.push(rest[j]); else next.push(rest[j]);
+      var r = ranges[rest[j]];
+      if (r.low <= p && p <= r.high) covered.push(rest[j]); else next.push(rest[j]);
     }
     var wmin = -Infinity, wmax = Infinity;
     for (var k = 0; k < covered.length; k++) {
-      if (covered[k].low > wmin) wmin = covered[k].low;
-      if (covered[k].high < wmax) wmax = covered[k].high;
+      var cr = ranges[covered[k]];
+      if (cr.low > wmin) wmin = cr.low;
+      if (cr.high < wmax) wmax = cr.high;
     }
     var rec = trunc2(wmax - (wmax - wmin) * 0.1);
     var fs = [];
-    for (var m = 0; m < covered.length; m++) if (fs.indexOf(covered[m].f) === -1) fs.push(covered[m].f);
+    for (var m = 0; m < covered.length; m++) {
+      var fv = ranges[covered[m]].f;
+      if (fs.indexOf(fv) === -1) fs.push(fv);
+    }
     fs.sort(function (a, b) { return a - b; });
-    groups.push({ wmin: wmin, wmax: wmax, rec: rec, factors: fs, count: covered.length });
+    groups.push({ wmin: wmin, wmax: wmax, rec: rec, factors: fs, count: covered.length, idxs: covered });
     rest = next;
   }
   groups.sort(function (a, b) { return a.rec - b.rec; });
@@ -431,36 +447,42 @@ function renderChartSVG(grp, conc) {
     var lx = Math.max(L + 14, Math.min(R - 14, cx));
     s += '<text x="' + lx + '" y="' + (top - 8) + '" font-size="10.5" font-weight="bold" fill="#fde047" text-anchor="middle">' + fmtF(conc) + '</text>';
   }
+  var groupOf = {};
+  for (var gm = 0; gm < plans.length; gm++) {
+    for (var gx = 0; gx < plans[gm].idxs.length; gx++) groupOf[plans[gm].idxs[gx]] = gm;
+  }
   for (var b2 = 0; b2 < plans.length; b2++) {
     var pg = plans[b2];
     if (pg.count < 2) continue;
+    var bcol = GROUP_COLORS[b2 % GROUP_COLORS.length];
     var bx1 = X(pg.wmin), bx2 = X(pg.wmax);
-    s += '<rect x="' + bx1 + '" y="' + top + '" width="' + Math.max(bx2 - bx1, 1) + '" height="' + rowsH + '" fill="rgba(52,211,153,.13)" stroke="#34d399" stroke-opacity=".7" stroke-width="1"/>';
+    s += '<rect x="' + bx1 + '" y="' + top + '" width="' + Math.max(bx2 - bx1, 1) + '" height="' + rowsH + '" fill="' + bcol.main + '" fill-opacity=".13" stroke="' + bcol.main + '" stroke-opacity=".7" stroke-width="1"/>';
     var blab = pg.wmin.toFixed(2) + "〜" + pg.wmax.toFixed(2);
     if (bx2 - bx1 > blab.length * 6 + 8) {
-      s += '<text x="' + ((bx1 + bx2) / 2) + '" y="' + (top + rowsH + 13) + '" font-size="9.5" fill="#34d399" text-anchor="middle">' + blab + '</text>';
+      s += '<text x="' + ((bx1 + bx2) / 2) + '" y="' + (top + rowsH + 13) + '" font-size="9.5" fill="' + bcol.main + '" text-anchor="middle">' + blab + '</text>';
     }
     var rcx = X(pg.rec);
-    s += '<polygon points="' + (rcx - 4.5) + "," + top + " " + (rcx + 4.5) + "," + top + " " + rcx + "," + (top + 5.5) + '" fill="#facc15"/>';
+    s += '<polygon points="' + (rcx - 4.5) + "," + top + " " + (rcx + 4.5) + "," + top + " " + rcx + "," + (top + 5.5) + '" fill="' + bcol.main + '"/>';
   }
   for (var i2 = 0; i2 < ranges.length; i2++) {
     var rg = ranges[i2];
     var cy = top + rowH * (i2 + 0.5);
     var hit = isHit(rg);
-    s += '<text x="' + (L - 6) + '" y="' + (cy + 4) + '" font-size="11" font-weight="bold" fill="' + (hit ? "#fde047" : "#c8d5eb") + '" text-anchor="end">' + fmtF(rg.f) + '</text>';
+    var col = GROUP_COLORS[(groupOf[i2] || 0) % GROUP_COLORS.length];
+    s += '<text x="' + (L - 6) + '" y="' + (cy + 4) + '" font-size="11" font-weight="bold" fill="' + (hit ? "#fde047" : col.light) + '" text-anchor="end">' + fmtF(rg.f) + '</text>';
     var x1 = X(rg.low), x2 = X(rg.high);
     if (hit) {
       s += '<rect x="' + (x1 - 3.5) + '" y="' + (cy - barH / 2 - 3.5) + '" width="' + (x2 - x1 + 7) + '" height="' + (barH + 7) + '" rx="9" fill="none" stroke="#facc15" stroke-width="2.5"/>';
     }
-    s += '<rect x="' + x1 + '" y="' + (cy - barH / 2) + '" width="' + Math.max(x2 - x1, 2) + '" height="' + barH + '" rx="7" fill="#5a2028" stroke="#f87171" stroke-width="1.5"/>';
-    s += '<circle cx="' + x1 + '" cy="' + cy + '" r="3" fill="#f87171"/>';
-    s += '<circle cx="' + x2 + '" cy="' + cy + '" r="3" fill="#f87171"/>';
+    s += '<rect x="' + x1 + '" y="' + (cy - barH / 2) + '" width="' + Math.max(x2 - x1, 2) + '" height="' + barH + '" rx="7" fill="' + col.dark + '" stroke="' + col.main + '" stroke-width="1.5"/>';
+    s += '<circle cx="' + x1 + '" cy="' + cy + '" r="3" fill="' + col.main + '"/>';
+    s += '<circle cx="' + x2 + '" cy="' + cy + '" r="3" fill="' + col.main + '"/>';
     if (x1 - L < 40) {
-      s += '<text x="' + x1 + '" y="' + (cy - 13) + '" font-size="10.5" fill="#fca5a5" text-anchor="start">' + rg.low.toFixed(2) + '</text>';
+      s += '<text x="' + x1 + '" y="' + (cy - 13) + '" font-size="10.5" fill="' + col.light + '" text-anchor="start">' + rg.low.toFixed(2) + '</text>';
     } else {
-      s += '<text x="' + (x1 - 5) + '" y="' + (cy + 4) + '" font-size="10.5" fill="#fca5a5" text-anchor="end">' + rg.low.toFixed(2) + '</text>';
+      s += '<text x="' + (x1 - 5) + '" y="' + (cy + 4) + '" font-size="10.5" fill="' + col.light + '" text-anchor="end">' + rg.low.toFixed(2) + '</text>';
     }
-    s += '<text x="' + (x2 + 5) + '" y="' + (cy + 4) + '" font-size="10.5" fill="#fca5a5" text-anchor="start">' + rg.high.toFixed(2) + '</text>';
+    s += '<text x="' + (x2 + 5) + '" y="' + (cy + 4) + '" font-size="10.5" fill="' + col.light + '" text-anchor="start">' + rg.high.toFixed(2) + '</text>';
   }
   s += '<text transform="translate(13,' + (top + rowsH / 2) + ') rotate(-90)" font-size="11" fill="#c8d5eb" text-anchor="middle">換算係数</text>';
   s += '<text x="' + ((L + R) / 2) + '" y="' + (axisY + 18) + '" font-size="11" fill="#c8d5eb" text-anchor="middle">校正ガス濃度</text>';
@@ -477,12 +499,13 @@ function chartBlock(grp, idx) {
     var mark = pi < marks.length ? marks[pi] : "(" + (pi + 1) + ")";
     var flist = "";
     for (var fi = 0; fi < pg2.factors.length; fi++) flist += (fi ? "、" : "") + fmtF(pg2.factors[fi]);
-    planHtml += '<div class="plan-line">' + mark + ' 校正ガス濃度 <span class="rec">' + pg2.rec.toFixed(2) + "</span> → 係数 " + flist + "</div>";
+    var pcol = GROUP_COLORS[pi % GROUP_COLORS.length];
+    planHtml += '<div class="plan-line"><span style="color:' + pcol.light + '">' + mark + ' 校正ガス濃度 <b>' + pg2.rec.toFixed(2) + "</b></span> → 係数 " + flist + "</div>";
   }
   planHtml += '<div class="plan-note">※ガス校正濃度は共通範囲の上限近くで1st×1.6付近の濃度です</div></div>';
   return '<div class="chart-block" data-gidx="' + idx + '">' +
     '<div class="chart-title">' + grp.name + " ・ 1st = " + grp.first + '</div>' +
-    '<div class="chart-note">横棒：その係数で使える濃度範囲 ／ 緑の帯：まとめて校正できる共通範囲</div>' +
+    '<div class="chart-note">横棒：その係数で使える濃度範囲 ／ 帯：まとめて校正できる共通範囲（まとめと同色）</div>' +
     '<div class="conc-row"><label>今のガス濃度は？</label><input type="number" class="conc-input" step="any" inputmode="decimal" placeholder="濃度"></div>' +
     '<div class="conc-result" style="display:none;"></div>' +
     '<div class="svg-wrap">' + renderChartSVG(grp, null) + "</div>" + planHtml + "</div>";
@@ -664,7 +687,7 @@ document.getElementById("graphBtn").addEventListener("click", function () {
       py += 30;
       ctx.font = "15px sans-serif";
       for (var li = 0; li < it.planLines.length; li++) {
-        ctx.fillStyle = "#e8eef7";
+        ctx.fillStyle = GROUP_COLORS[li % GROUP_COLORS.length].light;
         var fs = 15;
         ctx.font = fs + "px sans-serif";
         while (ctx.measureText(it.planLines[li]).width > W - pad * 2 && fs > 10) { fs--; ctx.font = fs + "px sans-serif"; }
