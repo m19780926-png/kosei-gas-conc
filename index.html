@@ -62,8 +62,8 @@
   #exportPanel td.num-high { color: #f87171; font-weight: bold; font-size: 14px; }
   #exportPanel td:first-child { font-family: inherit; }
   #exportPanel th:first-child, #exportPanel td:first-child { text-align: left; }
-  #csvBtn, #copyBtn { padding: 10px 14px; font-size: 14px; border-radius: 10px; border: 1px solid #10b981; background: transparent; color: #34d399; cursor: pointer; margin-top: 12px; margin-right: 8px; }
-  #csvBtn:active, #copyBtn:active { background: rgba(16,185,129,.15); }
+  #csvBtn, #copyBtn, #graphBtn { padding: 10px 14px; font-size: 14px; border-radius: 10px; border: 1px solid #10b981; background: transparent; color: #34d399; cursor: pointer; margin-top: 12px; margin-right: 8px; }
+  #csvBtn:active, #copyBtn:active, #graphBtn:active { background: rgba(16,185,129,.15); }
   #resetBtn { width: 100%; padding: 12px; font-size: 14px; background: transparent; color: #aebdd6; border: 1px solid #3b4c6b; border-radius: 12px; cursor: pointer; margin-top: 10px; }
   .note { font-size: 12px; color: #7e90ad; margin-top: 20px; line-height: 1.8; border-top: 1px solid #22345a; padding-top: 14px; }
 
@@ -100,6 +100,7 @@
   <div id="graphArea"></div>
   <button id="csvBtn" type="button">CSVで保存</button>
   <button id="copyBtn" type="button">テキストをコピー</button>
+  <button id="graphBtn" type="button">グラフを画像で保存</button>
 </div>
 
 <div class="note">
@@ -191,8 +192,8 @@ function makeRow() {
     '<div class="factors"></div>' +
     '<div class="factor-actions"><button type="button" class="add-factor-btn">＋ 換算係数を追加</button>' +
     '<span class="factor-hint">入力欄でTABキーを押しても入力欄が増えます</span></div>' +
-    '<label class="show-result"><input type="checkbox" class="chk-result" checked> 計算結果を表示する</label>' +
-    '<div class="result"><div class="cap">校正に使用できるガス濃度</div>' +
+    '<label class="show-result"><input type="checkbox" class="chk-result"> 計算結果を表示する</label>' +
+    '<div class="result" style="display:none;"><div class="cap">校正に使用できるガス濃度</div>' +
     '<div class="groups">' +
     '<div class="fgroup"><div class="vals">' +
     '<div class="val val-low"><div class="k">1st×1.12〜</div><div class="v v-low">―</div></div>' +
@@ -378,7 +379,7 @@ function renderChartSVG(grp, conc) {
   var rowH = 36, barH = 18;
   var rowsH = ranges.length * rowH;
   var axisY = top + rowsH + 16;
-  var H = axisY + 6;
+  var H = axisY + 22;
 
   function isHit(rg) { return conc !== null && rg.low <= conc && conc <= rg.high; }
 
@@ -413,6 +414,8 @@ function renderChartSVG(grp, conc) {
     }
     s += '<text x="' + (x2 + 5) + '" y="' + (cy + 4) + '" font-size="10.5" fill="#fca5a5" text-anchor="start">' + rg.high.toFixed(2) + '</text>';
   }
+  s += '<text transform="translate(13,' + (top + rowsH / 2) + ') rotate(-90)" font-size="11" fill="#c8d5eb" text-anchor="middle">換算係数</text>';
+  s += '<text x="' + ((L + R) / 2) + '" y="' + (axisY + 18) + '" font-size="11" fill="#c8d5eb" text-anchor="middle">校正ガス濃度</text>';
   s += "</svg>";
   return s;
 }
@@ -474,6 +477,7 @@ document.getElementById("exportBtn").addEventListener("click", function () {
     document.getElementById("graphArea").innerHTML = "";
     document.getElementById("csvBtn").style.display = "none";
     document.getElementById("copyBtn").style.display = "none";
+    document.getElementById("graphBtn").style.display = "none";
   } else {
     var html = "<table><tr><th>ガス名</th><th>1st</th><th>換算係数</th><th>1st×1.12〜</th><th>〜1st×1.6</th></tr>";
     var prevName = null;
@@ -495,6 +499,7 @@ document.getElementById("exportBtn").addEventListener("click", function () {
     bindConcInputs();
     document.getElementById("csvBtn").style.display = "";
     document.getElementById("copyBtn").style.display = "";
+    document.getElementById("graphBtn").style.display = "";
   }
   panel.style.display = "block";
   panel.scrollIntoView({ behavior: "smooth" });
@@ -538,6 +543,75 @@ document.getElementById("copyBtn").addEventListener("click", function () {
     document.body.removeChild(ta);
     alert("コピーしました");
   }
+});
+
+
+document.getElementById("graphBtn").addEventListener("click", function () {
+  var blocks = document.querySelectorAll("#graphArea .chart-block");
+  if (!blocks.length) { alert("グラフがありません"); return; }
+  var W = 760, pad = 28, gap = 30;
+  var items = [];
+  var totalH = pad;
+  for (var i = 0; i < blocks.length; i++) {
+    var b = blocks[i];
+    var svg = b.querySelector("svg");
+    var vb = svg.getAttribute("viewBox").split(/\s+/).map(Number);
+    var svgH = (W - pad * 2) * vb[3] / vb[2];
+    var res = b.querySelector(".conc-result");
+    var resText = (res && res.style.display !== "none") ? res.textContent : "";
+    var h = 34 + (resText ? 30 : 0) + 8 + svgH;
+    items.push({ title: b.querySelector(".chart-title").textContent, svg: svg, svgH: svgH, resText: resText, h: h });
+    totalH += h + gap;
+  }
+  totalH += pad - gap;
+  var canvas = document.createElement("canvas");
+  canvas.width = W;
+  canvas.height = Math.ceil(totalH);
+  var ctx = canvas.getContext("2d");
+  ctx.fillStyle = "#0a1120";
+  ctx.fillRect(0, 0, W, canvas.height);
+  var y = pad;
+  var pending = items.length;
+  items.forEach(function (it) {
+    var yy = y;
+    if (ctx.roundRect) {
+      ctx.fillStyle = "#111c30";
+      ctx.beginPath();
+      ctx.roundRect(8, yy - 14, W - 16, it.h + 24, 14);
+      ctx.fill();
+    }
+    ctx.fillStyle = "#facc15";
+    ctx.font = "bold 21px sans-serif";
+    ctx.textBaseline = "top";
+    ctx.fillText(it.title, pad, yy);
+    yy += 34;
+    if (it.resText) {
+      ctx.fillStyle = "#fde047";
+      ctx.font = "bold 17px sans-serif";
+      ctx.fillText(it.resText, pad, yy);
+      yy += 30;
+    }
+    yy += 8;
+    var xml = new XMLSerializer().serializeToString(it.svg);
+    if (xml.indexOf("xmlns=") === -1) xml = xml.replace("<svg", '<svg xmlns="http://www.w3.org/2000/svg"');
+    var url = URL.createObjectURL(new Blob([xml], { type: "image/svg+xml;charset=utf-8" }));
+    var img = new Image();
+    img.onload = function () {
+      ctx.drawImage(img, pad, yy, W - pad * 2, it.svgH);
+      URL.revokeObjectURL(url);
+      if (--pending === 0) {
+        var now = new Date();
+        function p(n) { return (n < 10 ? "0" : "") + n; }
+        var stamp = now.getFullYear() + p(now.getMonth() + 1) + p(now.getDate()) + p(now.getHours()) + p(now.getMinutes());
+        var a = document.createElement("a");
+        a.href = canvas.toDataURL("image/png");
+        a.download = stamp + "_kosei-gas-graph.png";
+        a.click();
+      }
+    };
+    img.src = url;
+    y += it.h + gap;
+  });
 });
 
 document.getElementById("resetBtn").addEventListener("click", function () {
