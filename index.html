@@ -50,6 +50,11 @@
   #exportPanel tr.geven td { background: rgba(125,211,252,.07); }
   #exportPanel td:first-child { font-weight: bold; color: #facc15; }
   #exportPanel td.num-low { color: #f87171; font-weight: bold; font-size: 14px; }
+  .chart-block { margin-top: 20px; border-top: 1px solid #263759; padding-top: 14px; }
+  .chart-title { font-size: 15px; font-weight: bold; color: #facc15; margin-bottom: 2px; }
+  .chart-note { font-size: 11px; color: #93a5c4; margin-bottom: 6px; }
+  .cover-list { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 13px; line-height: 2; color: #c8d5eb; margin-top: 8px; }
+  .cover-list .multi { color: #fde047; font-weight: bold; }
   #exportPanel td.num-high { color: #f87171; font-weight: bold; font-size: 14px; }
   #exportPanel td:first-child { font-family: inherit; }
   #exportPanel th:first-child, #exportPanel td:first-child { text-align: left; }
@@ -88,6 +93,7 @@
 <div id="exportPanel" class="card" style="display:none;">
   <div class="row-head"><span class="row-title">校正ガス濃度 一覧</span></div>
   <div id="exportBody"></div>
+  <div id="graphArea"></div>
   <button id="csvBtn" type="button">CSVで保存</button>
   <button id="copyBtn" type="button">テキストをコピー</button>
 </div>
@@ -325,6 +331,122 @@ function collectResults() {
   return list;
 }
 
+function fmtF(x) { return String(Math.round(x * 1000) / 1000); }
+
+function buildCharts(list) {
+  var groups = [];
+  var gmap = {};
+  var hasExcluded = false;
+  for (var i = 0; i < list.length; i++) {
+    var r = list[i];
+    var key = r.name + "|" + r.first;
+    if (!gmap[key]) { gmap[key] = { name: r.name, first: r.first, ranges: [] }; groups.push(gmap[key]); }
+    if (r.factor === "なし") { hasExcluded = true; continue; }
+    gmap[key].ranges.push({ f: parseFloat(r.factor), low: parseFloat(r.low), high: parseFloat(r.high) });
+  }
+  var out = "";
+  for (var g = 0; g < groups.length; g++) {
+    if (groups[g].ranges.length === 0) continue;
+    out += chartBlock(groups[g]);
+  }
+  if (out && hasExcluded) out += '<p class="chart-note">※換算係数なしの行はグラフ・濃度別一覧に含んでいません。</p>';
+  return out;
+}
+
+function chartBlock(grp) {
+  var ranges = grp.ranges;
+  var maxHigh = 0;
+  for (var i = 0; i < ranges.length; i++) if (ranges[i].high > maxHigh) maxHigh = ranges[i].high;
+
+  // coverage segments: 濃度区間ごとに使える係数の範囲
+  var ptsObj = {};
+  for (var j = 0; j < ranges.length; j++) { ptsObj[ranges[j].low] = 1; ptsObj[ranges[j].high] = 1; }
+  var pts = Object.keys(ptsObj).map(Number).sort(function (a, b) { return a - b; });
+  var segs = [];
+  for (var k = 0; k < pts.length - 1; k++) {
+    var a = pts[k], b = pts[k + 1], mid = (a + b) / 2;
+    var fmin = null, fmax = null;
+    for (var m = 0; m < ranges.length; m++) {
+      if (ranges[m].low <= mid && mid <= ranges[m].high) {
+        if (fmin === null || ranges[m].f < fmin) fmin = ranges[m].f;
+        if (fmax === null || ranges[m].f > fmax) fmax = ranges[m].f;
+      }
+    }
+    if (fmin === null) continue;
+    var key = fmin + "-" + fmax;
+    if (segs.length && segs[segs.length - 1].key === key && Math.abs(segs[segs.length - 1].b - a) < 1e-9) {
+      segs[segs.length - 1].b = b;
+    } else {
+      segs.push({ a: a, b: b, fmin: fmin, fmax: fmax, key: key });
+    }
+  }
+
+  // x scale
+  var rawMax = maxHigh * 1.22;
+  var pow = Math.pow(10, Math.floor(Math.log10(rawMax)));
+  var cand = [1, 2, 4, 5, 8, 10];
+  var xmax = 10 * pow;
+  for (var c = 0; c < cand.length; c++) { if (cand[c] * pow >= rawMax) { xmax = cand[c] * pow; break; } }
+
+  var W = 360, L = 48, R = 352, plotW = R - L;
+  function X(v) { return L + (v / xmax) * plotW; }
+  var top = 8, rowH = 36, barH = 18;
+  var rowsH = ranges.length * rowH;
+  var bandY = top + rowsH + 12, bandH = 22;
+  var axisY = bandY + bandH + 16;
+  var H = axisY + 6;
+
+  var s = '<svg viewBox="0 0 ' + W + ' ' + H + '" style="width:100%;height:auto;display:block;" font-family="ui-monospace,Menlo,Consolas,monospace">';
+  // grid + ticks
+  for (var t = 0; t <= 4; t++) {
+    var tv = xmax * t / 4, tx = X(tv);
+    s += '<line x1="' + tx + '" y1="' + top + '" x2="' + tx + '" y2="' + (bandY + bandH) + '" stroke="#263759" stroke-width="1"/>';
+    s += '<text x="' + tx + '" y="' + axisY + '" font-size="10" fill="#c8d5eb" text-anchor="middle">' + fmtF(tv) + '</text>';
+  }
+  // bars
+  for (var i2 = 0; i2 < ranges.length; i2++) {
+    var rg = ranges[i2];
+    var cy = top + rowH * (i2 + 0.5);
+    s += '<text x="' + (L - 6) + '" y="' + (cy + 4) + '" font-size="11" font-weight="bold" fill="#c8d5eb" text-anchor="end">' + fmtF(rg.f) + '</text>';
+    var x1 = X(rg.low), x2 = X(rg.high);
+    s += '<rect x="' + x1 + '" y="' + (cy - barH / 2) + '" width="' + Math.max(x2 - x1, 2) + '" height="' + barH + '" rx="7" fill="#5a2028" stroke="#f87171" stroke-width="1.5"/>';
+    s += '<circle cx="' + x1 + '" cy="' + cy + '" r="3" fill="#f87171"/>';
+    s += '<circle cx="' + x2 + '" cy="' + cy + '" r="3" fill="#f87171"/>';
+    if (x1 - L < 40) {
+      s += '<text x="' + x1 + '" y="' + (cy - 13) + '" font-size="10.5" fill="#fca5a5" text-anchor="start">' + rg.low.toFixed(2) + '</text>';
+    } else {
+      s += '<text x="' + (x1 - 5) + '" y="' + (cy + 4) + '" font-size="10.5" fill="#fca5a5" text-anchor="end">' + rg.low.toFixed(2) + '</text>';
+    }
+    s += '<text x="' + (x2 + 5) + '" y="' + (cy + 4) + '" font-size="10.5" fill="#fca5a5" text-anchor="start">' + rg.high.toFixed(2) + '</text>';
+  }
+  // coverage band
+  for (var s2 = 0; s2 < segs.length; s2++) {
+    var sg = segs[s2];
+    var multi = sg.fmin !== sg.fmax;
+    var bx1 = X(sg.a), bx2 = X(sg.b);
+    s += '<rect x="' + bx1 + '" y="' + bandY + '" width="' + Math.max(bx2 - bx1, 1) + '" height="' + bandH + '" fill="' + (multi ? "#6e5808" : "#5a2028") + '" stroke="' + (multi ? "#facc15" : "#f87171") + '" stroke-width="1"/>';
+    var lab = multi ? fmtF(sg.fmin) + "〜" + fmtF(sg.fmax) : fmtF(sg.fmin);
+    if (bx2 - bx1 > lab.length * 6.5 + 8) {
+      s += '<text x="' + ((bx1 + bx2) / 2) + '" y="' + (bandY + 15) + '" font-size="10" fill="' + (multi ? "#fde047" : "#fca5a5") + '" text-anchor="middle">' + lab + '</text>';
+    }
+  }
+  s += "</svg>";
+
+  var list = "";
+  for (var s3 = 0; s3 < segs.length; s3++) {
+    var sg2 = segs[s3];
+    var multi2 = sg2.fmin !== sg2.fmax;
+    var fr = multi2 ? fmtF(sg2.fmin) + "〜" + fmtF(sg2.fmax) : fmtF(sg2.fmin);
+    list += "濃度 " + sg2.a.toFixed(2) + "〜" + sg2.b.toFixed(2) + " → 係数 " + (multi2 ? '<span class="multi">' + fr + "</span>" : fr) + "<br>";
+  }
+
+  return '<div class="chart-block">' +
+    '<div class="chart-title">' + grp.name + " ・ 1st = " + grp.first + '</div>' +
+    '<div class="chart-note">横棒：その係数で使える濃度範囲 ／ 下の帯：その濃度で使える換算係数</div>' +
+    s +
+    '<div class="cover-list">' + list + "</div></div>";
+}
+
 var lastExport = [];
 
 document.getElementById("exportBtn").addEventListener("click", function () {
@@ -333,6 +455,7 @@ document.getElementById("exportBtn").addEventListener("click", function () {
   var body = document.getElementById("exportBody");
   if (lastExport.length === 0) {
     body.innerHTML = '<p style="font-size:14px;color:#93a5c4;">1stが入力されている行がありません。</p>';
+    document.getElementById("graphArea").innerHTML = "";
     document.getElementById("csvBtn").style.display = "none";
     document.getElementById("copyBtn").style.display = "none";
   } else {
@@ -352,6 +475,7 @@ document.getElementById("exportBtn").addEventListener("click", function () {
     }
     html += "</table>";
     body.innerHTML = html;
+    document.getElementById("graphArea").innerHTML = buildCharts(lastExport);
     document.getElementById("csvBtn").style.display = "";
     document.getElementById("copyBtn").style.display = "";
   }
