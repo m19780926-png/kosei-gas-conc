@@ -53,11 +53,9 @@
   .chart-block { margin-top: 20px; border-top: 1px solid #263759; padding-top: 14px; }
   .chart-title { font-size: 15px; font-weight: bold; color: #facc15; margin-bottom: 2px; }
   .chart-note { font-size: 11px; color: #93a5c4; margin-bottom: 6px; }
-  .cover-list { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 13px; line-height: 2; color: #c8d5eb; margin-top: 8px; }
-  .cover-list .multi { color: #fde047; font-weight: bold; }
-  .conc-row { display: flex; align-items: center; gap: 10px; margin: 10px 0 2px; }
-  .conc-row label { font-size: 14px; font-weight: bold; color: #e8eef7; margin: 0; }
-  .conc-input { width: 140px; }
+  .conc-row { display: flex; align-items: center; gap: 10px; margin: 10px 0 2px; flex-wrap: nowrap; }
+  .conc-row label { font-size: 14px; font-weight: bold; color: #e8eef7; margin: 0; white-space: nowrap; flex: none; }
+  .conc-input { width: 110px !important; flex: none; }
   .conc-result { margin: 8px 0 4px; padding: 11px 12px; border-radius: 10px; font-size: 15px; font-weight: bold; border: 1.5px solid #facc15; background: rgba(250,204,21,.12); color: #e8eef7; }
   .conc-result .cf { color: #fde047; }
   .conc-result.none { border-color: #7f2d3a; background: rgba(248,113,113,.08); color: #fca5a5; }
@@ -359,38 +357,12 @@ function buildCharts(list) {
     out += chartBlock(groups[g], chartGroups.length);
     chartGroups.push(groups[g]);
   }
-  if (out && hasExcluded) out += '<p class="chart-note">※換算係数なしの行はグラフ・濃度別一覧に含んでいません。</p>';
+  if (out && hasExcluded) out += '<p class="chart-note">※換算係数なしの行はグラフに含んでいません。</p>';
   return out;
-}
-
-function coverSegs(ranges) {
-  var ptsObj = {};
-  for (var j = 0; j < ranges.length; j++) { ptsObj[ranges[j].low] = 1; ptsObj[ranges[j].high] = 1; }
-  var pts = Object.keys(ptsObj).map(Number).sort(function (a, b) { return a - b; });
-  var segs = [];
-  for (var k = 0; k < pts.length - 1; k++) {
-    var a = pts[k], b = pts[k + 1], mid = (a + b) / 2;
-    var fmin = null, fmax = null;
-    for (var m = 0; m < ranges.length; m++) {
-      if (ranges[m].low <= mid && mid <= ranges[m].high) {
-        if (fmin === null || ranges[m].f < fmin) fmin = ranges[m].f;
-        if (fmax === null || ranges[m].f > fmax) fmax = ranges[m].f;
-      }
-    }
-    if (fmin === null) continue;
-    var key = fmin + "-" + fmax;
-    if (segs.length && segs[segs.length - 1].key === key && Math.abs(segs[segs.length - 1].b - a) < 1e-9) {
-      segs[segs.length - 1].b = b;
-    } else {
-      segs.push({ a: a, b: b, fmin: fmin, fmax: fmax, key: key });
-    }
-  }
-  return segs;
 }
 
 function renderChartSVG(grp, conc) {
   var ranges = grp.ranges;
-  var segs = coverSegs(ranges);
   var maxHigh = 0;
   for (var i = 0; i < ranges.length; i++) if (ranges[i].high > maxHigh) maxHigh = ranges[i].high;
 
@@ -405,8 +377,7 @@ function renderChartSVG(grp, conc) {
   var top = (conc !== null && conc <= xmax) ? 22 : 8;
   var rowH = 36, barH = 18;
   var rowsH = ranges.length * rowH;
-  var bandY = top + rowsH + 12, bandH = 22;
-  var axisY = bandY + bandH + 16;
+  var axisY = top + rowsH + 16;
   var H = axisY + 6;
 
   function isHit(rg) { return conc !== null && rg.low <= conc && conc <= rg.high; }
@@ -414,12 +385,12 @@ function renderChartSVG(grp, conc) {
   var s = '<svg viewBox="0 0 ' + W + ' ' + H + '" style="width:100%;height:auto;display:block;" font-family="ui-monospace,Menlo,Consolas,monospace">';
   for (var t = 0; t <= 4; t++) {
     var tv = xmax * t / 4, tx = X(tv);
-    s += '<line x1="' + tx + '" y1="' + top + '" x2="' + tx + '" y2="' + (bandY + bandH) + '" stroke="#263759" stroke-width="1"/>';
+    s += '<line x1="' + tx + '" y1="' + top + '" x2="' + tx + '" y2="' + (top + rowsH) + '" stroke="#263759" stroke-width="1"/>';
     s += '<text x="' + tx + '" y="' + axisY + '" font-size="10" fill="#c8d5eb" text-anchor="middle">' + fmtF(tv) + '</text>';
   }
   if (conc !== null && conc <= xmax) {
     var cx = X(conc);
-    s += '<line x1="' + cx + '" y1="' + top + '" x2="' + cx + '" y2="' + (bandY + bandH) + '" stroke="#facc15" stroke-width="2" stroke-dasharray="5 4"/>';
+    s += '<line x1="' + cx + '" y1="' + top + '" x2="' + cx + '" y2="' + (top + rowsH) + '" stroke="#facc15" stroke-width="2" stroke-dasharray="5 4"/>';
     var lx = Math.max(L + 14, Math.min(R - 14, cx));
     s += '<text x="' + lx + '" y="' + (top - 8) + '" font-size="10.5" font-weight="bold" fill="#fde047" text-anchor="middle">' + fmtF(conc) + '</text>';
   }
@@ -442,37 +413,17 @@ function renderChartSVG(grp, conc) {
     }
     s += '<text x="' + (x2 + 5) + '" y="' + (cy + 4) + '" font-size="10.5" fill="#fca5a5" text-anchor="start">' + rg.high.toFixed(2) + '</text>';
   }
-  for (var s2 = 0; s2 < segs.length; s2++) {
-    var sg = segs[s2];
-    var multi = sg.fmin !== sg.fmax;
-    var bx1 = X(sg.a), bx2 = X(sg.b);
-    s += '<rect x="' + bx1 + '" y="' + bandY + '" width="' + Math.max(bx2 - bx1, 1) + '" height="' + bandH + '" fill="' + (multi ? "#6e5808" : "#5a2028") + '" stroke="' + (multi ? "#facc15" : "#f87171") + '" stroke-width="1"/>';
-    var lab = multi ? fmtF(sg.fmin) + "〜" + fmtF(sg.fmax) : fmtF(sg.fmin);
-    if (bx2 - bx1 > lab.length * 6.5 + 8) {
-      s += '<text x="' + ((bx1 + bx2) / 2) + '" y="' + (bandY + 15) + '" font-size="10" fill="' + (multi ? "#fde047" : "#fca5a5") + '" text-anchor="middle">' + lab + '</text>';
-    }
-  }
   s += "</svg>";
   return s;
 }
 
 function chartBlock(grp, idx) {
-  var segs = coverSegs(grp.ranges);
-  var list = "";
-  for (var s3 = 0; s3 < segs.length; s3++) {
-    var sg2 = segs[s3];
-    var multi2 = sg2.fmin !== sg2.fmax;
-    var fr = multi2 ? fmtF(sg2.fmin) + "〜" + fmtF(sg2.fmax) : fmtF(sg2.fmin);
-    list += "濃度 " + sg2.a.toFixed(2) + "〜" + sg2.b.toFixed(2) + " → 係数 " + (multi2 ? '<span class="multi">' + fr + "</span>" : fr) + "<br>";
-  }
-
   return '<div class="chart-block" data-gidx="' + idx + '">' +
     '<div class="chart-title">' + grp.name + " ・ 1st = " + grp.first + '</div>' +
-    '<div class="chart-note">横棒：その係数で使える濃度範囲 ／ 下の帯：その濃度で使える換算係数</div>' +
-    '<div class="conc-row"><label>今のガス濃度は？</label><input type="number" class="conc-input" step="any" inputmode="decimal" placeholder="濃度を入力"></div>' +
+    '<div class="chart-note">横棒：その係数で使える濃度範囲</div>' +
+    '<div class="conc-row"><label>今のガス濃度は？</label><input type="number" class="conc-input" step="any" inputmode="decimal" placeholder="濃度"></div>' +
     '<div class="conc-result" style="display:none;"></div>' +
-    '<div class="svg-wrap">' + renderChartSVG(grp, null) + "</div>" +
-    '<div class="cover-list">' + list + "</div></div>";
+    '<div class="svg-wrap">' + renderChartSVG(grp, null) + "</div></div>";
 }
 
 function bindConcInputs() {
