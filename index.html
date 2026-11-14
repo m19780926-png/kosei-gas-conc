@@ -35,8 +35,8 @@
   #rows .card { scroll-margin-top: 84px; }
   #chipBar { position: sticky; top: 0; z-index: 60; display: flex; flex-wrap: wrap; gap: 8px; padding: 10px 2px; background: rgba(10,17,32,.94); }
   #chipBar:empty { display: none; }
-  .chip { padding: 7px 14px; border-radius: 999px; border: 1px solid #26375a; background: #17294a; color: #dbe7f7; font-size: 14px; font-weight: bold; cursor: pointer; font-family: inherit; }
-  .chip:active { background: #1f3a66; }
+  .chip { padding: 8px 16px; border-radius: 999px; border: 1px solid #6ee7b7; background: linear-gradient(180deg, #10b981, #0d946e); color: #042018; font-size: 14px; font-weight: bold; cursor: pointer; font-family: inherit; box-shadow: 0 3px 8px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.35); }
+  .chip:active { background: linear-gradient(180deg, #0d946e, #0b7a5c); transform: translateY(2px); box-shadow: 0 1px 3px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.2); }
   #rows .card::before { content: ""; display: block; height: 12px; margin: -16px -16px 14px; background: repeating-linear-gradient(45deg, #facc15 0 14px, #141414 14px 28px); }
   .result { margin-top: 16px; background: #0a1322; border: 1px solid rgba(248,113,113,.4); border-radius: 12px; padding: 14px; box-shadow: inset 0 0 24px rgba(248,113,113,.07); }
   .result .cap { font-size: 13px; color: #fca5a5; font-weight: bold; letter-spacing: .1em; margin-bottom: 10px; }
