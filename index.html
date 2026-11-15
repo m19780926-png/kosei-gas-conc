@@ -79,7 +79,6 @@
   .plan-head { color: #e8eef7; font-weight: bold; font-size: 15px; margin-bottom: 4px; }
   .plan-line { font-size: 14px; line-height: 1.9; color: #e8eef7; }
   .plan-line .rec { color: #fde047; font-weight: bold; }
-  .plan-note { font-size: 11px; color: #93a5c4; margin-top: 6px; }
   #exportPanel td.num-high { color: #f87171; font-weight: bold; font-size: 14px; }
   #exportPanel td:first-child { font-family: inherit; }
   #exportPanel th:first-child, #exportPanel td:first-child { text-align: left; }
@@ -625,7 +624,7 @@ function planBoxHtml(plans, pat) {
     var pcol = GROUP_COLORS[pi % GROUP_COLORS.length];
     planHtml += '<div class="plan-line"><span style="color:' + pcol.light + '">' + mark + ' 校正ガス濃度 <b>' + pg2.rec.toFixed(2) + "</b></span> → 係数 " + flist + "</div>";
   }
-  planHtml += '<div class="plan-note">※ガス校正濃度は共通範囲の上限近くで1st×1.6付近の濃度です</div></div>';
+  planHtml += "</div>";
   return planHtml;
 }
 
