@@ -71,6 +71,10 @@
   .conc-result { margin: 8px 0 4px; padding: 11px 12px; border-radius: 10px; font-size: 15px; font-weight: bold; border: 1.5px solid #facc15; background: rgba(250,204,21,.12); color: #e8eef7; }
   .conc-result .cf { color: #fde047; }
   .conc-result.none { border-color: #7f2d3a; background: rgba(248,113,113,.08); color: #fca5a5; }
+  .pattern-row { display: flex; gap: 8px; margin: 12px 0 2px; }
+  .pattern-btn { flex: 1; padding: 10px 6px; border-radius: 10px; border: 1px solid #475569; background: #1e293b; color: #cbd5e1; font-size: 14px; font-weight: bold; cursor: pointer; }
+  .pattern-btn.active { background: linear-gradient(180deg, #10b981, #0d946e); border: 1px solid #10b981; color: #fff; box-shadow: 0 4px 10px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.35); }
+  .pattern-btn:active { transform: translateY(1px); }
   .plan-box { margin-top: 12px; border: 1.5px solid #2b4a6b; background: rgba(125,211,252,.05); border-radius: 12px; padding: 12px 14px; }
   .plan-head { color: #e8eef7; font-weight: bold; font-size: 15px; margin-bottom: 4px; }
   .plan-line { font-size: 14px; line-height: 1.9; color: #e8eef7; }
@@ -451,7 +455,55 @@ var GROUP_COLORS = [
   { main: "#f87171", dark: "#5a2028", light: "#fca5a5" }
 ];
 
-function planGroups(ranges) {
+function groupStats(idxs, ranges) {
+  var wmin = -Infinity, wmax = Infinity;
+  for (var k = 0; k < idxs.length; k++) {
+    var cr = ranges[idxs[k]];
+    if (cr.low > wmin) wmin = cr.low;
+    if (cr.high < wmax) wmax = cr.high;
+  }
+  var rec = trunc2(wmax - (wmax - wmin) * 0.1);
+  var fs = [];
+  for (var m = 0; m < idxs.length; m++) {
+    var fv = ranges[idxs[m]].f;
+    if (fs.indexOf(fv) === -1) fs.push(fv);
+  }
+  fs.sort(function (a, b) { return a - b; });
+  return { wmin: wmin, wmax: wmax, rec: rec, factors: fs, count: idxs.length, idxs: idxs.slice() };
+}
+
+function groupMinPos(g, ranges) {
+  var minPos = Infinity;
+  for (var i = 0; i < g.idxs.length; i++) {
+    var r = ranges[g.idxs[i]];
+    var pos = (g.rec - r.low) / (r.high - r.low);
+    if (pos < minPos) minPos = pos;
+  }
+  return minPos;
+}
+
+function splitGroup(g, ranges, threshold, out) {
+  var minPos = groupMinPos(g, ranges);
+  if (g.idxs.length < 2 || minPos >= threshold) { out.push(g); return; }
+  var sorted = g.idxs.slice().sort(function (a, b) { return ranges[a].f - ranges[b].f; });
+  var best = null;
+  for (var s = 1; s < sorted.length; s++) {
+    var g1 = groupStats(sorted.slice(0, s), ranges);
+    var g2 = groupStats(sorted.slice(s), ranges);
+    if (g1.wmin > g1.wmax || g2.wmin > g2.wmax) continue;
+    var worst = Math.min(groupMinPos(g1, ranges), groupMinPos(g2, ranges));
+    if (!best || worst > best.worst) best = { worst: worst, g1: g1, g2: g2 };
+  }
+  if (best && best.worst > minPos) {
+    splitGroup(best.g1, ranges, threshold, out);
+    splitGroup(best.g2, ranges, threshold, out);
+  } else {
+    out.push(g);
+  }
+}
+
+function planGroups(ranges, threshold) {
+  if (threshold === undefined) threshold = 0.20;
   var rest = [];
   for (var i0 = 0; i0 < ranges.length; i0++) rest.push(i0);
   var groups = [];
@@ -464,27 +516,22 @@ function planGroups(ranges) {
       var r = ranges[rest[j]];
       if (r.low <= p && p <= r.high) covered.push(rest[j]); else next.push(rest[j]);
     }
-    var wmin = -Infinity, wmax = Infinity;
-    for (var k = 0; k < covered.length; k++) {
-      var cr = ranges[covered[k]];
-      if (cr.low > wmin) wmin = cr.low;
-      if (cr.high < wmax) wmax = cr.high;
-    }
-    var rec = trunc2(wmax - (wmax - wmin) * 0.1);
-    var fs = [];
-    for (var m = 0; m < covered.length; m++) {
-      var fv = ranges[covered[m]].f;
-      if (fs.indexOf(fv) === -1) fs.push(fv);
-    }
-    fs.sort(function (a, b) { return a - b; });
-    groups.push({ wmin: wmin, wmax: wmax, rec: rec, factors: fs, count: covered.length, idxs: covered });
+    groups.push(groupStats(covered, ranges));
     rest = next;
   }
-  groups.sort(function (a, b) { return a.rec - b.rec; });
-  return groups;
+  var out = [];
+  for (var q = 0; q < groups.length; q++) splitGroup(groups[q], ranges, threshold, out);
+  out.sort(function (a, b) { return a.rec - b.rec; });
+  return out;
 }
 
-function renderChartSVG(grp, conc) {
+var PATTERNS = {
+  A: { label: "ガス袋少なめ", threshold: 0.20 },
+  B: { label: "上限寄り", threshold: 0.40 }
+};
+var chartPattern = {};
+
+function renderChartSVG(grp, conc, pat) {
   var ranges = grp.ranges;
   var maxHigh = 0;
   for (var i = 0; i < ranges.length; i++) if (ranges[i].high > maxHigh) maxHigh = ranges[i].high;
@@ -500,7 +547,7 @@ function renderChartSVG(grp, conc) {
   var top = (conc !== null && conc <= xmax) ? 22 : 8;
   var rowH = 36, barH = 18;
   var rowsH = ranges.length * rowH;
-  var plans = planGroups(ranges);
+  var plans = planGroups(ranges, PATTERNS[pat || "A"].threshold);
   var hasBand = false;
   for (var pb = 0; pb < plans.length; pb++) if (plans[pb].count >= 2) hasBand = true;
   var axisY = top + rowsH + (hasBand ? 28 : 16);
@@ -563,10 +610,9 @@ function renderChartSVG(grp, conc) {
   return s;
 }
 
-function chartBlock(grp, idx) {
-  var plans = planGroups(grp.ranges);
+function planBoxHtml(plans, pat) {
   var marks = ["①", "②", "③", "④", "⑤", "⑥", "⑦", "⑧", "⑨", "⑩"];
-  var planHtml = '<div class="plan-box"><div class="plan-head">まとめ：校正ガス濃度は ' + plans.length + 'つ でOK</div>';
+  var planHtml = '<div class="plan-box"><div class="plan-head">まとめ（' + PATTERNS[pat].label + '）：校正ガス濃度は ' + plans.length + 'つ でOK</div>';
   for (var pi = 0; pi < plans.length; pi++) {
     var pg2 = plans[pi];
     var mark = pi < marks.length ? marks[pi] : "(" + (pi + 1) + ")";
@@ -576,12 +622,44 @@ function chartBlock(grp, idx) {
     planHtml += '<div class="plan-line"><span style="color:' + pcol.light + '">' + mark + ' 校正ガス濃度 <b>' + pg2.rec.toFixed(2) + "</b></span> → 係数 " + flist + "</div>";
   }
   planHtml += '<div class="plan-note">※ガス校正濃度は共通範囲の上限近くで1st×1.6付近の濃度です</div></div>';
+  return planHtml;
+}
+
+function chartBlock(grp, idx) {
+  chartPattern[idx] = "A";
+  var plansA = planGroups(grp.ranges, PATTERNS.A.threshold);
+  var plansB = planGroups(grp.ranges, PATTERNS.B.threshold);
+  var patHtml = '<div class="pattern-row">' +
+    '<button type="button" class="pattern-btn active" data-pat="A">ガス袋少なめ（' + plansA.length + 'つ）</button>' +
+    '<button type="button" class="pattern-btn" data-pat="B">上限寄り（' + plansB.length + 'つ）</button></div>';
   return '<div class="chart-block" data-gidx="' + idx + '">' +
     '<div class="chart-title">' + grp.name + " ・ 1st = " + grp.first + '</div>' +
     '<div class="chart-note">横棒：その係数で使える濃度範囲 ／ 帯：まとめて校正できる共通範囲（まとめと同色）</div>' +
     '<div class="conc-row"><label>今のガス濃度は？</label><input type="number" class="conc-input" step="any" inputmode="decimal" placeholder="濃度"></div>' +
     '<div class="conc-result" style="display:none;"></div>' +
-    '<div class="svg-wrap">' + renderChartSVG(grp, null) + "</div>" + planHtml + "</div>";
+    '<div class="svg-wrap">' + renderChartSVG(grp, null, "A") + "</div>" + patHtml +
+    '<div class="plan-wrap">' + planBoxHtml(plansA, "A") + "</div></div>";
+}
+
+function bindPatternBtns() {
+  var btns = document.querySelectorAll(".pattern-btn");
+  for (var i = 0; i < btns.length; i++) {
+    btns[i].addEventListener("click", function () {
+      var block = this.closest(".chart-block");
+      var gidx = Number(block.getAttribute("data-gidx"));
+      var grp = chartGroups[gidx];
+      var pat = this.getAttribute("data-pat");
+      chartPattern[gidx] = pat;
+      var siblings = block.querySelectorAll(".pattern-btn");
+      for (var s = 0; s < siblings.length; s++) siblings[s].classList.toggle("active", siblings[s] === this);
+      var inp = block.querySelector(".conc-input");
+      var raw = inp ? inp.value.trim() : "";
+      var v = parseFloat(raw);
+      var conc = (raw !== "" && !isNaN(v)) ? v : null;
+      block.querySelector(".svg-wrap").innerHTML = renderChartSVG(grp, conc, pat);
+      block.querySelector(".plan-wrap").innerHTML = planBoxHtml(planGroups(grp.ranges, PATTERNS[pat].threshold), pat);
+    });
+  }
 }
 
 function bindConcInputs() {
@@ -589,14 +667,16 @@ function bindConcInputs() {
   for (var i = 0; i < inputs.length; i++) {
     inputs[i].addEventListener("input", function () {
       var block = this.closest(".chart-block");
-      var grp = chartGroups[Number(block.getAttribute("data-gidx"))];
+      var gidx2 = Number(block.getAttribute("data-gidx"));
+      var grp = chartGroups[gidx2];
+      var pat2 = chartPattern[gidx2] || "A";
       var result = block.querySelector(".conc-result");
       var wrap = block.querySelector(".svg-wrap");
       var raw = this.value.trim();
       var v = parseFloat(raw);
       if (raw === "" || isNaN(v)) {
         result.style.display = "none";
-        wrap.innerHTML = renderChartSVG(grp, null);
+        wrap.innerHTML = renderChartSVG(grp, null, pat2);
         return;
       }
       var fmin = null, fmax = null;
@@ -616,7 +696,7 @@ function bindConcInputs() {
         var fr = fmin === fmax ? fmtF(fmin) : fmtF(fmin) + "〜" + fmtF(fmax);
         result.innerHTML = "濃度 " + raw + ' → 換算係数 <span class="cf">' + fr + "</span> が校正できます";
       }
-      wrap.innerHTML = renderChartSVG(grp, v);
+      wrap.innerHTML = renderChartSVG(grp, v, pat2);
     });
   }
 }
@@ -663,6 +743,7 @@ document.getElementById("exportBtn").addEventListener("click", function () {
     }
     body.innerHTML = html;
     bindConcInputs();
+    bindPatternBtns();
     var csvBtns = panel.querySelectorAll(".gas-csv");
     for (var a = 0; a < csvBtns.length; a++) csvBtns[a].addEventListener("click", function () { downloadGasCSV(gasData[Number(this.getAttribute("data-gi"))]); });
     var copyBtns = panel.querySelectorAll(".gas-copy");
