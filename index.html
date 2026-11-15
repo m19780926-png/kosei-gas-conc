@@ -640,7 +640,7 @@ function chartBlock(grp, idx) {
   var plansDef = planGroups(grp.ranges, PATTERNS[DEFAULT_PATTERN].threshold);
   return '<div class="chart-block" data-gidx="' + idx + '">' +
     '<div class="chart-title">' + grp.name + " ・ 1st = " + grp.first + '</div>' +
-    '<div class="chart-note">横棒：その係数で使える濃度範囲 ／ 帯：まとめて校正できる共通範囲（まとめと同色）</div>' +
+    '<div class="chart-note">横棒：その係数で使える濃度範囲<br>帯：まとめて校正できる共通範囲（まとめと同色）</div>' +
     '<div class="conc-row"><label>今のガス濃度は？</label><input type="number" class="conc-input" step="any" inputmode="decimal" placeholder="濃度"></div>' +
     '<div class="conc-result" style="display:none;"></div>' +
     '<div class="svg-wrap">' + renderChartSVG(grp, null, DEFAULT_PATTERN) + "</div>" + patHtml +
