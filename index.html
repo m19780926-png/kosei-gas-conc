@@ -71,8 +71,8 @@
   .conc-result { margin: 8px 0 4px; padding: 11px 12px; border-radius: 10px; font-size: 15px; font-weight: bold; border: 1.5px solid #facc15; background: rgba(250,204,21,.12); color: #e8eef7; }
   .conc-result .cf { color: #fde047; }
   .conc-result.none { border-color: #7f2d3a; background: rgba(248,113,113,.08); color: #fca5a5; }
-  .pattern-row { display: flex; gap: 8px; margin: 12px 0 2px; }
-  .pattern-btn { flex: 1; padding: 10px 6px; border-radius: 10px; border: 1px solid #475569; background: #1e293b; color: #cbd5e1; font-size: 14px; font-weight: bold; cursor: pointer; }
+  .pattern-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 12px 0 2px; }
+  .pattern-btn { padding: 9px 4px; border-radius: 10px; border: 1px solid #475569; background: #1e293b; color: #cbd5e1; font-size: 13px; font-weight: bold; cursor: pointer; }
   .pattern-btn.active { background: linear-gradient(180deg, #10b981, #0d946e); border: 1px solid #10b981; color: #fff; box-shadow: 0 4px 10px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.35); }
   .pattern-btn:active { transform: translateY(1px); }
   .plan-box { margin-top: 12px; border: 1.5px solid #2b4a6b; background: rgba(125,211,252,.05); border-radius: 12px; padding: 12px 14px; }
@@ -526,9 +526,13 @@ function planGroups(ranges, threshold) {
 }
 
 var PATTERNS = {
-  A: { label: "ガス袋少なめ", threshold: 0.20 },
-  B: { label: "上限寄り", threshold: 0.40 }
+  min: { label: "ガス袋最少", threshold: -1 },
+  few: { label: "ガス袋少なめ", threshold: 0.20 },
+  bal: { label: "バランス", threshold: 0.40 },
+  top: { label: "上限寄り", threshold: 1 }
 };
+var PATTERN_ORDER = ["min", "few", "bal", "top"];
+var DEFAULT_PATTERN = "few";
 var chartPattern = {};
 
 function renderChartSVG(grp, conc, pat) {
@@ -547,7 +551,7 @@ function renderChartSVG(grp, conc, pat) {
   var top = (conc !== null && conc <= xmax) ? 22 : 8;
   var rowH = 36, barH = 18;
   var rowsH = ranges.length * rowH;
-  var plans = planGroups(ranges, PATTERNS[pat || "A"].threshold);
+  var plans = planGroups(ranges, PATTERNS[pat || DEFAULT_PATTERN].threshold);
   var hasBand = false;
   for (var pb = 0; pb < plans.length; pb++) if (plans[pb].count >= 2) hasBand = true;
   var axisY = top + rowsH + (hasBand ? 28 : 16);
@@ -626,19 +630,22 @@ function planBoxHtml(plans, pat) {
 }
 
 function chartBlock(grp, idx) {
-  chartPattern[idx] = "A";
-  var plansA = planGroups(grp.ranges, PATTERNS.A.threshold);
-  var plansB = planGroups(grp.ranges, PATTERNS.B.threshold);
-  var patHtml = '<div class="pattern-row">' +
-    '<button type="button" class="pattern-btn active" data-pat="A">ガス袋少なめ（' + plansA.length + 'つ）</button>' +
-    '<button type="button" class="pattern-btn" data-pat="B">上限寄り（' + plansB.length + 'つ）</button></div>';
+  chartPattern[idx] = DEFAULT_PATTERN;
+  var patHtml = '<div class="pattern-row">';
+  for (var pk = 0; pk < PATTERN_ORDER.length; pk++) {
+    var key = PATTERN_ORDER[pk];
+    var cnt = planGroups(grp.ranges, PATTERNS[key].threshold).length;
+    patHtml += '<button type="button" class="pattern-btn' + (key === DEFAULT_PATTERN ? " active" : "") + '" data-pat="' + key + '">' + PATTERNS[key].label + '（' + cnt + 'つ）</button>';
+  }
+  patHtml += "</div>";
+  var plansDef = planGroups(grp.ranges, PATTERNS[DEFAULT_PATTERN].threshold);
   return '<div class="chart-block" data-gidx="' + idx + '">' +
     '<div class="chart-title">' + grp.name + " ・ 1st = " + grp.first + '</div>' +
     '<div class="chart-note">横棒：その係数で使える濃度範囲 ／ 帯：まとめて校正できる共通範囲（まとめと同色）</div>' +
     '<div class="conc-row"><label>今のガス濃度は？</label><input type="number" class="conc-input" step="any" inputmode="decimal" placeholder="濃度"></div>' +
     '<div class="conc-result" style="display:none;"></div>' +
-    '<div class="svg-wrap">' + renderChartSVG(grp, null, "A") + "</div>" + patHtml +
-    '<div class="plan-wrap">' + planBoxHtml(plansA, "A") + "</div></div>";
+    '<div class="svg-wrap">' + renderChartSVG(grp, null, DEFAULT_PATTERN) + "</div>" + patHtml +
+    '<div class="plan-wrap">' + planBoxHtml(plansDef, DEFAULT_PATTERN) + "</div></div>";
 }
 
 function bindPatternBtns() {
@@ -669,7 +676,7 @@ function bindConcInputs() {
       var block = this.closest(".chart-block");
       var gidx2 = Number(block.getAttribute("data-gidx"));
       var grp = chartGroups[gidx2];
-      var pat2 = chartPattern[gidx2] || "A";
+      var pat2 = chartPattern[gidx2] || DEFAULT_PATTERN;
       var result = block.querySelector(".conc-result");
       var wrap = block.querySelector(".svg-wrap");
       var raw = this.value.trim();
