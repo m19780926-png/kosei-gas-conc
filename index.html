@@ -153,7 +153,10 @@ function makeFactorRow(card) {
     '<input type="number" class="in-factor" inputmode="decimal" step="any" placeholder="例：0.95">' +
     '<button type="button" class="factor-del" tabindex="-1" style="display:none;">×</button>';
   var inp = row.querySelector(".in-factor");
-  inp.addEventListener("input", function () { calc(card); });
+  inp.addEventListener("input", function () {
+    if (inp.value.indexOf("-") !== -1) inp.value = inp.value.replace(/-/g, "");
+    calc(card);
+  });
   inp.addEventListener("keydown", function (e) {
     if (e.key === "Tab" && !e.shiftKey) {
       var inputs = card.querySelectorAll(".in-factor");
@@ -265,7 +268,10 @@ function makeRow() {
     fr.querySelector(".in-factor").focus();
   });
 
-  card.querySelector(".in-first").addEventListener("input", function () { calc(card); });
+  card.querySelector(".in-first").addEventListener("input", function () {
+    if (this.value.indexOf("-") !== -1) this.value = this.value.replace(/-/g, "");
+    calc(card);
+  });
 
   card.querySelector(".chk-result").addEventListener("change", function () {
     card.querySelector(".result").style.display = this.checked ? "" : "none";
@@ -675,6 +681,7 @@ function bindConcInputs() {
   var inputs = document.querySelectorAll(".conc-input");
   for (var i = 0; i < inputs.length; i++) {
     inputs[i].addEventListener("input", function () {
+      if (this.value.indexOf("-") !== -1) this.value = this.value.replace(/-/g, "");
       var block = this.closest(".chart-block");
       var gidx2 = Number(block.getAttribute("data-gidx"));
       var grp = chartGroups[gidx2];
