@@ -783,13 +783,15 @@ document.getElementById("exportBtn").addEventListener("click", function () {
     for (var gi = 0; gi < gases.length; gi++) {
       var gname = gases[gi];
       var rows = byGas[gname];
-      gasData.push({ name: gname, rows: rows });
+      var gdEntry = { name: gname, rows: rows, gidxs: [] };
+      gasData.push(gdEntry);
       // 一覧より先にグラフ側の分组けを作り、同じ色・まとめ番号を一覧に使う。
       // （表の並びは collectResults のガス名→換算係数降順のまま）
       var gStart = chartGroups.length;
       var chartHtml = buildCharts(rows);
       var cmap = {};
       for (var cg = gStart; cg < chartGroups.length; cg++) {
+        gdEntry.gidxs.push(cg);
         var gm = groupColorFor(chartGroups[cg], DEFAULT_PATTERN);
         for (var fk in gm) cmap[chartGroups[cg].first + "|" + fk] = gm[fk];
       }
@@ -809,6 +811,7 @@ document.getElementById("exportBtn").addEventListener("click", function () {
       html += chartHtml;
       html += '<div><button type="button" class="gas-csv" data-gi="' + gi + '">CSVで保存</button>' +
         '<button type="button" class="gas-copy" data-gi="' + gi + '">テキストをコピー</button>' +
+        '<button type="button" class="gas-table-img" data-gi="' + gi + '">一覧を画像で保存</button>' +
         '<button type="button" class="gas-graph" data-gi="' + gi + '">グラフを画像で保存</button></div>';
       html += "</div>";
     }
@@ -824,6 +827,8 @@ document.getElementById("exportBtn").addEventListener("click", function () {
       var gi2 = Number(this.getAttribute("data-gi"));
       saveGasGraph(this.closest(".gas-block"), gasData[gi2].name);
     });
+    var timgBtns = panel.querySelectorAll(".gas-table-img");
+    for (var d2 = 0; d2 < timgBtns.length; d2++) timgBtns[d2].addEventListener("click", function () { saveGasTableImage(gasData[Number(this.getAttribute("data-gi"))]); });
   }
   panel.style.display = "block";
   panel.scrollIntoView({ behavior: "smooth" });
@@ -837,11 +842,13 @@ function stampNow() {
 
 function downloadGasCSV(gd) {
   if (!gd || !gd.rows.length) return;
-  var lines = ["ガス名,1st,換算係数,1st×1.12〜,〜1st×1.6"];
+  var gmap = gasGroupMap(gd);
+  var lines = ["グループ,ガス名,1st,換算係数,1st×1.12〜,〜1st×1.6"];
   for (var i = 0; i < gd.rows.length; i++) {
     var r = gd.rows[i];
+    var ge = groupEntryFor(gmap, r);
     var nm = '"' + String(r.name).replace(/"/g, '""') + '"';
-    lines.push(nm + "," + r.first + "," + r.factor + "," + r.low + "," + r.high);
+    lines.push((ge ? ge.mark : "") + "," + nm + "," + r.first + "," + r.factor + "," + r.low + "," + r.high);
   }
   var blob = new Blob(["\uFEFF" + lines.join("\r\n")], { type: "text/csv" });
   var a = document.createElement("a");
@@ -853,10 +860,12 @@ function downloadGasCSV(gd) {
 
 function copyGasText(gd) {
   if (!gd || !gd.rows.length) return;
+  var gmap = gasGroupMap(gd);
   var lines = ["校正ガス濃度 一覧"];
   for (var i = 0; i < gd.rows.length; i++) {
     var r = gd.rows[i];
-    lines.push(r.name + "　1st：" + r.first + "　換算係数：" + r.factor + "　1st×1.12〜：" + r.low + "　〜1st×1.6：" + r.high);
+    var ge = groupEntryFor(gmap, r);
+    lines.push((ge ? ge.mark + " " : "") + r.name + "　1st：" + r.first + "　換算係数：" + r.factor + "　1st×1.12〜：" + r.low + "　〜1st×1.6：" + r.high);
   }
   var text = lines.join("\n");
   if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -870,6 +879,106 @@ function copyGasText(gd) {
     document.body.removeChild(ta);
     alert("コピーしました");
   }
+}
+
+// そのガスの「現在のパターン選択」に基づくグループ対応表。
+// CSV・テキストコピー・一覧画像で共用し、画面の一覧表示と常に一致させる。
+function gasGroupMap(gd) {
+  var map = {};
+  if (!gd || !gd.gidxs) return map;
+  for (var i = 0; i < gd.gidxs.length; i++) {
+    var grp = chartGroups[gd.gidxs[i]];
+    if (!grp) continue;
+    var gm = groupColorFor(grp, chartPattern[gd.gidxs[i]] || DEFAULT_PATTERN);
+    for (var fk in gm) map[grp.first + "|" + fk] = gm[fk];
+  }
+  return map;
+}
+function groupEntryFor(gmap, r) {
+  if (!r || r.factor === "なし") return null;
+  return gmap[r.first + "|" + fmtF(parseFloat(r.factor))] || null;
+}
+
+// 一覧表を色付きのままPNG画像で保存する（画面の色分けを再現して描画）。
+function saveGasTableImage(gd) {
+  if (!gd || !gd.rows.length) return;
+  var gmap = gasGroupMap(gd);
+  var W = 720, pad = 24;
+  var tableW = W - pad * 2;
+  var cols = [0.13, 0.16, 0.11, 0.19, 0.20, 0.21];
+  var colX = [pad];
+  for (var ci = 0; ci < cols.length; ci++) colX.push(colX[ci] + Math.round(tableW * cols[ci]));
+  colX[cols.length] = pad + tableW;
+  var titleH = 40, headH = 38, rowH = 38;
+  var tableH = headH + rowH * gd.rows.length;
+  var H = pad + titleH + tableH + pad;
+  var canvas = document.createElement("canvas");
+  var scale = 2;
+  canvas.width = W * scale;
+  canvas.height = H * scale;
+  var ctx = canvas.getContext("2d");
+  ctx.scale(scale, scale);
+  ctx.fillStyle = "#0a1120";
+  ctx.fillRect(0, 0, W, H);
+  ctx.textBaseline = "middle";
+  ctx.font = "bold 20px sans-serif";
+  ctx.textAlign = "left";
+  ctx.fillStyle = "#e8eef7";
+  ctx.fillText("校正ガス濃度一覧 ", pad, pad + titleH / 2);
+  var tw = ctx.measureText("校正ガス濃度一覧 ").width;
+  ctx.fillStyle = "#facc15";
+  ctx.fillText(gd.name, pad + tw, pad + titleH / 2);
+  var y = pad + titleH;
+  ctx.fillStyle = "#122544";
+  ctx.fillRect(pad, y, tableW, headH);
+  var heads = ["グループ", "ガス名", "1st", "換算係数", "1st×1.12〜", "〜1st×1.6"];
+  ctx.font = "bold 14px sans-serif";
+  ctx.fillStyle = "#bfe0ff";
+  for (var h = 0; h < heads.length; h++) {
+    var hx = colX[h], hw = colX[h + 1] - colX[h];
+    if (h === 0 || h === 2) { ctx.textAlign = "center"; ctx.fillText(heads[h], hx + hw / 2, y + headH / 2); }
+    else if (h === 1) { ctx.textAlign = "left"; ctx.fillText(heads[h], hx + 10, y + headH / 2); }
+    else { ctx.textAlign = "right"; ctx.fillText(heads[h], hx + hw - 10, y + headH / 2); }
+  }
+  y += headH;
+  for (var i = 0; i < gd.rows.length; i++) {
+    var r = gd.rows[i];
+    var ge = groupEntryFor(gmap, r);
+    ctx.fillStyle = ge ? ge.col.dark : "#101a30";
+    ctx.fillRect(pad, y, tableW, rowH);
+    var cy = y + rowH / 2;
+    ctx.textAlign = "center";
+    ctx.font = "bold 17px sans-serif";
+    if (ge) { ctx.fillStyle = ge.col.light; ctx.fillText(ge.mark, colX[0] + (colX[1] - colX[0]) / 2, cy); }
+    else if (r.factor === "なし") { ctx.fillStyle = "#93a5c4"; ctx.fillText("－", colX[0] + (colX[1] - colX[0]) / 2, cy); }
+    ctx.textAlign = "left";
+    ctx.font = "bold 15px sans-serif";
+    ctx.fillStyle = "#facc15";
+    ctx.fillText(r.name, colX[1] + 10, cy);
+    ctx.textAlign = "center";
+    ctx.font = "15px monospace";
+    ctx.fillStyle = "#e8eef7";
+    ctx.fillText(String(r.first), colX[2] + (colX[3] - colX[2]) / 2, cy);
+    ctx.textAlign = "right";
+    ctx.fillText(String(r.factor), colX[4] - 10, cy);
+    ctx.font = "bold 15px monospace";
+    ctx.fillStyle = "#f87171";
+    ctx.fillText(String(r.low), colX[5] - 10, cy);
+    ctx.fillText(String(r.high), colX[6] - 10, cy);
+    y += rowH;
+  }
+  ctx.strokeStyle = "#26375a";
+  ctx.lineWidth = 1;
+  ctx.strokeRect(pad, pad + titleH, tableW, tableH);
+  ctx.beginPath();
+  var yy = pad + titleH + headH;
+  for (var li = 0; li < gd.rows.length; li++) { ctx.moveTo(pad, yy); ctx.lineTo(pad + tableW, yy); yy += rowH; }
+  for (var vi = 1; vi < colX.length - 1; vi++) { ctx.moveTo(colX[vi], pad + titleH); ctx.lineTo(colX[vi], pad + titleH + tableH); }
+  ctx.stroke();
+  var a = document.createElement("a");
+  a.href = canvas.toDataURL("image/png");
+  a.download = stampNow() + "_kosei-gas-table_" + safeName(gd.name) + ".png";
+  a.click();
 }
 
 function saveGasGraph(blockEl, gasName) {
