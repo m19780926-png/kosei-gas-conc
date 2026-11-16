@@ -573,6 +573,7 @@ function renderChartSVG(grp, conc, pat) {
   function X(v) { return L + (v / xmax) * plotW; }
   var top = (conc !== null && conc <= xmax) ? 22 : 8;
   var rowH = 36, barH = 18;
+  if (window.innerWidth <= 480) { rowH = 50; barH = 24; }
   var rowsH = ranges.length * rowH;
   var plans = planGroups(ranges, PATTERNS[pat || DEFAULT_PATTERN].threshold);
   var hasBand = false;
@@ -625,7 +626,7 @@ function renderChartSVG(grp, conc, pat) {
     s += '<circle cx="' + x1 + '" cy="' + cy + '" r="3" fill="' + col.main + '"/>';
     s += '<circle cx="' + x2 + '" cy="' + cy + '" r="3" fill="' + col.main + '"/>';
     if (x1 - L < 40) {
-      s += '<text x="' + x1 + '" y="' + (cy - 13) + '" font-size="10.5" fill="' + col.light + '" text-anchor="start">' + rg.low.toFixed(2) + '</text>';
+      s += '<text x="' + x1 + '" y="' + (cy - barH / 2 - 4) + '" font-size="10.5" fill="' + col.light + '" text-anchor="start">' + rg.low.toFixed(2) + '</text>';
     } else {
       s += '<text x="' + (x1 - 5) + '" y="' + (cy + 4) + '" font-size="10.5" fill="' + col.light + '" text-anchor="end">' + rg.low.toFixed(2) + '</text>';
     }
