@@ -808,7 +808,7 @@ document.getElementById("exportBtn").addEventListener("click", function () {
       }
       html += '<div class="gas-block" data-gi="' + gi + '">';
       html += '<div class="gas-head">校正ガス濃度一覧 <span>' + gname + "</span></div>";
-      html += "<div class=\"table-wrap\"><table><tr><th class=\"grp-head\">グループ</th><th>ガス名</th><th>1st</th><th>換算係数</th><th>1st×1.12〜</th><th>〜1st×1.6</th></tr>";
+      html += "<div class=\"table-wrap\"><table><tr><th class=\"grp-head\">No</th><th>ガス名</th><th>1st</th><th>係数</th><th>1st×1.12〜</th><th>〜1st×1.6</th></tr>";
       for (var k = 0; k < rows.length; k++) {
         var r = rows[k];
         var ge = (r.factor === "なし") ? null : cmap[r.first + "|" + fmtF(parseFloat(r.factor))];
@@ -854,7 +854,7 @@ function stampNow() {
 function downloadGasCSV(gd) {
   if (!gd || !gd.rows.length) return;
   var gmap = gasGroupMap(gd);
-  var lines = ["グループ,ガス名,1st,換算係数,1st×1.12〜,〜1st×1.6"];
+  var lines = ["No,ガス名,1st,係数,1st×1.12〜,〜1st×1.6"];
   for (var i = 0; i < gd.rows.length; i++) {
     var r = gd.rows[i];
     var ge = groupEntryFor(gmap, r);
@@ -876,7 +876,7 @@ function copyGasText(gd) {
   for (var i = 0; i < gd.rows.length; i++) {
     var r = gd.rows[i];
     var ge = groupEntryFor(gmap, r);
-    lines.push((ge ? ge.mark + " " : "") + r.name + "　1st：" + r.first + "　換算係数：" + r.factor + "　1st×1.12〜：" + r.low + "　〜1st×1.6：" + r.high);
+    lines.push((ge ? ge.mark + " " : "") + r.name + "　1st：" + r.first + "　係数：" + r.factor + "　1st×1.12〜：" + r.low + "　〜1st×1.6：" + r.high);
   }
   var text = lines.join("\n");
   if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -942,7 +942,7 @@ function saveGasTableImage(gd) {
   var y = pad + titleH;
   ctx.fillStyle = "#122544";
   ctx.fillRect(pad, y, tableW, headH);
-  var heads = ["グループ", "ガス名", "1st", "換算係数", "1st×1.12〜", "〜1st×1.6"];
+  var heads = ["No", "ガス名", "1st", "係数", "1st×1.12〜", "〜1st×1.6"];
   ctx.font = "bold 14px sans-serif";
   ctx.fillStyle = "#bfe0ff";
   for (var h = 0; h < heads.length; h++) {
