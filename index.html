@@ -14,6 +14,7 @@
 <style>
   * { box-sizing: border-box; }
   body { font-family: "Hiragino Kaku Gothic ProN", "Noto Sans JP", sans-serif; margin: 0 auto; max-width: 600px; padding: 20px 16px 32px; background: linear-gradient(180deg, #0a1120 0%, #0d1830 60%, #0a1428 100%); background-attachment: fixed; color: #e8eef7; min-height: 100vh; }
+  html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
   h1 { font-size: clamp(22px, 7.4vw, 34px); white-space: nowrap; line-height: 1.3; margin: 0 0 8px; letter-spacing: 0; background: linear-gradient(90deg, #7dd3fc, #38bdf8 45%, #2dd4bf); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
   .sub { font-size: 15px; color: #aebdd6; margin-bottom: 12px; line-height: 1.7; }
   .warning-note { background: rgba(127, 29, 29, .25); border: 1px solid #7f2d3a; border-radius: 10px; padding: 10px 12px; color: #f87171; font-size: 13px; font-weight: bold; line-height: 1.7; margin-bottom: 18px; }
@@ -72,7 +73,7 @@
   .conc-result .cf { color: #fde047; }
   .conc-result.none { border-color: #7f2d3a; background: rgba(248,113,113,.08); color: #fca5a5; }
   .pattern-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 12px 0 2px; }
-  .pattern-btn { padding: 9px 4px; border-radius: 10px; border: 1px solid #475569; background: #1e293b; color: #cbd5e1; font-size: 13px; font-weight: bold; cursor: pointer; }
+  .pattern-btn { padding: 9px 4px; border-radius: 10px; border: 1px solid #475569; background: #1e293b; color: #cbd5e1; font-size: 13px; font-weight: bold; cursor: pointer; white-space: nowrap; }
   .pattern-btn.active { background: linear-gradient(180deg, #10b981, #0d946e); border: 1px solid #10b981; color: #fff; box-shadow: 0 4px 10px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.35); }
   .pattern-btn:active { transform: translateY(1px); }
   .plan-box { margin-top: 12px; border: 1.5px solid #2b4a6b; background: rgba(125,211,252,.05); border-radius: 12px; padding: 12px 14px; }
@@ -90,6 +91,8 @@
     #exportPanel th { white-space: nowrap; font-size: 10.5px; }
     #exportPanel td.grp-cell { font-size: 13px; }
     #exportPanel td.num-low, #exportPanel td.num-high { font-size: 12px; }
+    .pattern-btn { font-size: 12px; padding: 8px 2px; }
+    .plan-line { font-size: 13px; }
   }
   #exportPanel td:first-child { font-family: inherit; }
   #exportPanel th:first-child, #exportPanel td:first-child { text-align: left; }
@@ -642,7 +645,7 @@ function planBoxHtml(plans, pat) {
     var flist = "";
     for (var fi = 0; fi < pg2.factors.length; fi++) flist += (fi ? "、" : "") + fmtF(pg2.factors[fi]);
     var pcol = GROUP_COLORS[pi % GROUP_COLORS.length];
-    planHtml += '<div class="plan-line"><span style="color:' + pcol.light + '">' + mark + ' 校正ガス濃度 <b>' + pg2.rec.toFixed(2) + "</b></span> → 係数 " + flist + "（合計" + pg2.count + "点）</div>";
+    planHtml += '<div class="plan-line"><span style="color:' + pcol.light + '">' + mark + ' 校正ガス濃度 <b>' + pg2.rec.toFixed(2) + "</b></span> → 係数 " + flist + '<span style="white-space:nowrap">（合計' + pg2.count + "点）</span></div>";
   }
   planHtml += "</div>";
   return planHtml;
