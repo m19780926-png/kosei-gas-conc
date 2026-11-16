@@ -80,6 +80,9 @@
   .plan-line { font-size: 14px; line-height: 1.9; color: #e8eef7; }
   .plan-line .rec { color: #fde047; font-weight: bold; }
   #exportPanel td.num-high { color: #f87171; font-weight: bold; font-size: 14px; }
+  #exportPanel td.grp-cell, #exportPanel th.grp-head { text-align: center; }
+  #exportPanel td.grp-cell { font-weight: bold; font-size: 15px; }
+  #exportPanel td.gas-name { font-weight: bold; color: #facc15; font-family: inherit; }
   #exportPanel td:first-child { font-family: inherit; }
   #exportPanel th:first-child, #exportPanel td:first-child { text-align: left; }
   .gas-csv, .gas-copy, .gas-graph { padding: 10px 14px; font-size: 14px; font-weight: bold; border-radius: 10px; border: 1px solid #6ee7b7; background: linear-gradient(180deg, #10b981, #0d946e); color: #042018; cursor: pointer; margin-top: 12px; margin-right: 8px; box-shadow: 0 3px 8px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.35); }
@@ -637,6 +640,42 @@ function planBoxHtml(plans, pat) {
   return planHtml;
 }
 
+var PLAN_MARKS = ["①", "②", "③", "④", "⑤", "⑥", "⑦", "⑧", "⑨", "⑩"];
+// グラフ・まとめと同じ planGroups の分け方で、換算係数→まとめ番号・色を返す。
+// キーは fmtF(換算係数)。まとめ番号・色はグラフの帯・横棒・まとめ行と同一。
+function groupColorFor(grp, pat) {
+  var plans = planGroups(grp.ranges, PATTERNS[pat || DEFAULT_PATTERN].threshold);
+  var map = {};
+  for (var pi = 0; pi < plans.length; pi++) {
+    for (var xi = 0; xi < plans[pi].idxs.length; xi++) {
+      var rg = grp.ranges[plans[pi].idxs[xi]];
+      map[fmtF(rg.f)] = { idx: pi, mark: pi < PLAN_MARKS.length ? PLAN_MARKS[pi] : "(" + (pi + 1) + ")", col: GROUP_COLORS[pi % GROUP_COLORS.length] };
+    }
+  }
+  return map;
+}
+// パターン切替時に、同じガスブロック内の一覧の色・まとめ番号だけを塗り直す。
+// CSV・コピー用テキスト・グラフPNGには影響しない。
+function recolorGasList(gasBlock, grp, pat) {
+  if (!gasBlock || !grp) return;
+  var cmap = groupColorFor(grp, pat);
+  var trs = gasBlock.querySelectorAll("table tr[data-first]");
+  for (var i = 0; i < trs.length; i++) {
+    var tr = trs[i];
+    if (String(tr.getAttribute("data-first")) !== String(grp.first)) continue;
+    var f = tr.getAttribute("data-factor");
+    if (!f || f === "なし") continue;
+    var e = cmap[fmtF(parseFloat(f))];
+    if (!e) continue;
+    var tds = tr.querySelectorAll("td");
+    for (var d = 0; d < tds.length; d++) tds[d].style.background = e.col.dark;
+    var gTd = tr.querySelector("td.grp-cell");
+    if (gTd) {
+      gTd.innerHTML = '<span style="color:' + e.col.light + '">' + e.mark + "</span>";
+    }
+  }
+}
+
 function chartBlock(grp, idx) {
   chartPattern[idx] = DEFAULT_PATTERN;
   var patHtml = '<div class="pattern-row">';
@@ -673,6 +712,7 @@ function bindPatternBtns() {
       var conc = (raw !== "" && !isNaN(v)) ? v : null;
       block.querySelector(".svg-wrap").innerHTML = renderChartSVG(grp, conc, pat);
       block.querySelector(".plan-wrap").innerHTML = planBoxHtml(planGroups(grp.ranges, PATTERNS[pat].threshold), pat);
+      recolorGasList(block.closest(".gas-block"), grp, pat);
     });
   }
 }
@@ -744,15 +784,29 @@ document.getElementById("exportBtn").addEventListener("click", function () {
       var gname = gases[gi];
       var rows = byGas[gname];
       gasData.push({ name: gname, rows: rows });
+      // 一覧より先にグラフ側の分组けを作り、同じ色・まとめ番号を一覧に使う。
+      // （表の並びは collectResults のガス名→換算係数降順のまま）
+      var gStart = chartGroups.length;
+      var chartHtml = buildCharts(rows);
+      var cmap = {};
+      for (var cg = gStart; cg < chartGroups.length; cg++) {
+        var gm = groupColorFor(chartGroups[cg], DEFAULT_PATTERN);
+        for (var fk in gm) cmap[chartGroups[cg].first + "|" + fk] = gm[fk];
+      }
       html += '<div class="gas-block" data-gi="' + gi + '">';
       html += '<div class="gas-head">校正ガス濃度一覧 <span>' + gname + "</span></div>";
-      html += "<table><tr><th>ガス名</th><th>1st</th><th>換算係数</th><th>1st×1.12〜</th><th>〜1st×1.6</th></tr>";
+      html += "<table><tr><th class=\"grp-head\">グループ</th><th>ガス名</th><th>1st</th><th>換算係数</th><th>1st×1.12〜</th><th>〜1st×1.6</th></tr>";
       for (var k = 0; k < rows.length; k++) {
         var r = rows[k];
-        html += "<tr><td>" + r.name + "</td><td>" + r.first + "</td><td>" + r.factor + '</td><td class="num-low">' + r.low + '</td><td class="num-high">' + r.high + "</td></tr>";
+        var ge = (r.factor === "なし") ? null : cmap[r.first + "|" + fmtF(parseFloat(r.factor))];
+        var bgStyle = ge ? ' style="background:' + ge.col.dark + '"' : "";
+        var grpCell = ge
+          ? '<td class="grp-cell"' + bgStyle + '><span style="color:' + ge.col.light + '">' + ge.mark + "</span></td>"
+          : '<td class="grp-cell">' + (r.factor === "なし" ? '<span style="color:#93a5c4">－</span>' : "") + "</td>";
+        html += '<tr data-first="' + r.first + '" data-factor="' + r.factor + '">' + grpCell + '<td class="gas-name"' + bgStyle + ">" + r.name + "</td><td" + bgStyle + ">" + r.first + "</td><td" + bgStyle + ">" + r.factor + '</td><td class="num-low"' + bgStyle + ">" + r.low + '</td><td class="num-high"' + bgStyle + ">" + r.high + "</td></tr>";
       }
       html += "</table>";
-      html += buildCharts(rows);
+      html += chartHtml;
       html += '<div><button type="button" class="gas-csv" data-gi="' + gi + '">CSVで保存</button>' +
         '<button type="button" class="gas-copy" data-gi="' + gi + '">テキストをコピー</button>' +
         '<button type="button" class="gas-graph" data-gi="' + gi + '">グラフを画像で保存</button></div>';
