@@ -83,6 +83,14 @@
   #exportPanel td.grp-cell, #exportPanel th.grp-head { text-align: center; }
   #exportPanel td.grp-cell { font-weight: bold; font-size: 15px; }
   #exportPanel td.gas-name { font-weight: bold; color: #facc15; font-family: inherit; }
+  #exportPanel .table-wrap { overflow-x: auto; }
+  @media (max-width: 480px) {
+    #exportPanel table { font-size: 11px; }
+    #exportPanel th, #exportPanel td { padding: 6px 2px; }
+    #exportPanel th { white-space: normal; line-height: 1.35; }
+    #exportPanel td.grp-cell { font-size: 13px; }
+    #exportPanel td.num-low, #exportPanel td.num-high { font-size: 12px; }
+  }
   #exportPanel td:first-child { font-family: inherit; }
   #exportPanel th:first-child, #exportPanel td:first-child { text-align: left; }
   .gas-csv, .gas-copy, .gas-graph { padding: 10px 14px; font-size: 14px; font-weight: bold; border-radius: 10px; border: 1px solid #6ee7b7; background: linear-gradient(180deg, #10b981, #0d946e); color: #042018; cursor: pointer; margin-top: 12px; margin-right: 8px; box-shadow: 0 3px 8px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.35); }
@@ -797,7 +805,7 @@ document.getElementById("exportBtn").addEventListener("click", function () {
       }
       html += '<div class="gas-block" data-gi="' + gi + '">';
       html += '<div class="gas-head">校正ガス濃度一覧 <span>' + gname + "</span></div>";
-      html += "<table><tr><th class=\"grp-head\">グループ</th><th>ガス名</th><th>1st</th><th>換算係数</th><th>1st×1.12〜</th><th>〜1st×1.6</th></tr>";
+      html += "<div class=\"table-wrap\"><table><tr><th class=\"grp-head\">グループ</th><th>ガス名</th><th>1st</th><th>換算係数</th><th>1st×1.12〜</th><th>〜1st×1.6</th></tr>";
       for (var k = 0; k < rows.length; k++) {
         var r = rows[k];
         var ge = (r.factor === "なし") ? null : cmap[r.first + "|" + fmtF(parseFloat(r.factor))];
@@ -807,7 +815,7 @@ document.getElementById("exportBtn").addEventListener("click", function () {
           : '<td class="grp-cell">' + (r.factor === "なし" ? '<span style="color:#93a5c4">－</span>' : "") + "</td>";
         html += '<tr data-first="' + r.first + '" data-factor="' + r.factor + '">' + grpCell + '<td class="gas-name"' + bgStyle + ">" + r.name + "</td><td" + bgStyle + ">" + r.first + "</td><td" + bgStyle + ">" + r.factor + '</td><td class="num-low"' + bgStyle + ">" + r.low + '</td><td class="num-high"' + bgStyle + ">" + r.high + "</td></tr>";
       }
-      html += "</table>";
+      html += "</table></div>";
       html += chartHtml;
       html += '<div><button type="button" class="gas-csv" data-gi="' + gi + '">CSVで保存</button>' +
         '<button type="button" class="gas-copy" data-gi="' + gi + '">テキストをコピー</button>' +
