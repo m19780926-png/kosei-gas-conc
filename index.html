@@ -634,7 +634,7 @@ function planBoxHtml(plans, pat) {
     var flist = "";
     for (var fi = 0; fi < pg2.factors.length; fi++) flist += (fi ? "、" : "") + fmtF(pg2.factors[fi]);
     var pcol = GROUP_COLORS[pi % GROUP_COLORS.length];
-    planHtml += '<div class="plan-line"><span style="color:' + pcol.light + '">' + mark + ' 校正ガス濃度 <b>' + pg2.rec.toFixed(2) + "</b></span> → 係数 " + flist + "</div>";
+    planHtml += '<div class="plan-line"><span style="color:' + pcol.light + '">' + mark + ' 校正ガス濃度 <b>' + pg2.rec.toFixed(2) + "</b></span> → 係数 " + flist + "（合計" + pg2.count + "点）</div>";
   }
   planHtml += "</div>";
   return planHtml;
