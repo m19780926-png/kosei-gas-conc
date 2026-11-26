@@ -272,6 +272,8 @@ function makeRow() {
   sel.addEventListener("change", function () {
     free.style.display = (sel.value === "__other__") ? "block" : "none";
     updateTitle();
+    if (sel.value === "__other__") free.focus();
+    else if (sel.value) card.querySelector(".in-first").focus();
   });
   free.addEventListener("input", updateTitle);
 
