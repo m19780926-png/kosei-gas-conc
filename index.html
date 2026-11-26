@@ -156,9 +156,16 @@ var GASES = ["B2H6", "CLF3", "DIPAS", "F2", "HBR", "HF", "O3", "Si2H6"];
 function trunc2(n) {
   return Math.floor(n * 100 + 1e-9) / 100;
 }
+function ceil2(n) {
+  return Math.ceil(n * 100 - 1e-9) / 100;
+}
 function fmt(n) {
   if (!isFinite(n)) return "―";
   return trunc2(n).toFixed(2);
+}
+function fmtLow(n) {
+  if (!isFinite(n)) return "―";
+  return ceil2(n).toFixed(2);
 }
 
 function makeFactorRow(card) {
@@ -361,7 +368,7 @@ function calc(card) {
     var cap = "";
     var lowTxt, highTxt;
     if (f === null) {
-      lowTxt = fmt(low);
+      lowTxt = fmtLow(low);
       highTxt = fmt(high);
     } else {
       var fv = parseFloat(f);
@@ -370,7 +377,7 @@ function calc(card) {
         lowTxt = "係数0は不可";
         highTxt = "係数0は不可";
       } else {
-        lowTxt = fmt(low / fv);
+        lowTxt = fmtLow(low / fv);
         highTxt = fmt(high / fv);
       }
     }
@@ -426,8 +433,10 @@ function collectResults() {
         first: first,
         factor: fDisp,
         sk: sk,
-        low: trunc2(low).toFixed(2),
-        high: trunc2(high).toFixed(2)
+        low: fmtLow(low),
+        high: fmt(high),
+        lowRaw: low,
+        highRaw: high
       });
     }
   }
@@ -452,7 +461,7 @@ function buildCharts(list) {
     var key = r.name + "|" + r.first;
     if (!gmap[key]) { gmap[key] = { name: r.name, first: r.first, ranges: [] }; groups.push(gmap[key]); }
     if (r.factor === "なし") { hasExcluded = true; continue; }
-    gmap[key].ranges.push({ f: parseFloat(r.factor), low: parseFloat(r.low), high: parseFloat(r.high) });
+    gmap[key].ranges.push({ f: parseFloat(r.factor), low: r.lowRaw, high: r.highRaw });
   }
   var out = "";
   for (var g = 0; g < groups.length; g++) {
@@ -486,6 +495,9 @@ function groupStats(idxs, ranges) {
     if (cr.high < wmax) wmax = cr.high;
   }
   var rec = trunc2(wmax - (wmax - wmin) * 0.1);
+  var recMin = ceil2(wmin), recMax = trunc2(wmax);
+  if (rec < recMin) rec = recMin;
+  if (rec > recMax) rec = recMax;
   var fs = [];
   for (var m = 0; m < idxs.length; m++) {
     var fv = ranges[idxs[m]].f;
@@ -539,7 +551,16 @@ function planGroups(ranges, threshold) {
       var r = ranges[rest[j]];
       if (r.low <= p && p <= r.high) covered.push(rest[j]); else next.push(rest[j]);
     }
-    groups.push(groupStats(covered, ranges));
+    var gs = groupStats(covered, ranges);
+    if (covered.length > 1 && ceil2(gs.wmin) > trunc2(gs.wmax)) {
+      // 小数第2位で共通の濃度が存在しない場合は、アンカーを単独グループにする
+      groups.push(groupStats([anchor], ranges));
+      var rest2 = [];
+      for (var ri = 0; ri < covered.length; ri++) if (covered[ri] !== anchor) rest2.push(covered[ri]);
+      if (rest2.length) groups.push(groupStats(rest2, ranges));
+    } else {
+      groups.push(gs);
+    }
     rest = next;
   }
   var out = [];
@@ -605,7 +626,7 @@ function renderChartSVG(grp, conc, pat) {
     var bcol = GROUP_COLORS[b2 % GROUP_COLORS.length];
     var bx1 = X(pg.wmin), bx2 = X(pg.wmax);
     s += '<rect x="' + bx1 + '" y="' + top + '" width="' + Math.max(bx2 - bx1, 1) + '" height="' + rowsH + '" fill="' + bcol.main + '" fill-opacity=".13" stroke="' + bcol.main + '" stroke-opacity=".7" stroke-width="1"/>';
-    var blab = pg.wmin.toFixed(2) + "〜" + pg.wmax.toFixed(2);
+    var blab = fmtLow(pg.wmin) + "〜" + fmt(pg.wmax);
     if (bx2 - bx1 > blab.length * 6 + 8) {
       s += '<text x="' + ((bx1 + bx2) / 2) + '" y="' + (top + rowsH + 13) + '" font-size="9.5" fill="' + bcol.main + '" text-anchor="middle">' + blab + '</text>';
     }
@@ -626,11 +647,11 @@ function renderChartSVG(grp, conc, pat) {
     s += '<circle cx="' + x1 + '" cy="' + cy + '" r="3" fill="' + col.main + '"/>';
     s += '<circle cx="' + x2 + '" cy="' + cy + '" r="3" fill="' + col.main + '"/>';
     if (x1 - L < 40) {
-      s += '<text x="' + x1 + '" y="' + (cy - barH / 2 - 4) + '" font-size="10.5" fill="' + col.light + '" text-anchor="start">' + rg.low.toFixed(2) + '</text>';
+      s += '<text x="' + x1 + '" y="' + (cy - barH / 2 - 4) + '" font-size="10.5" fill="' + col.light + '" text-anchor="start">' + fmtLow(rg.low) + '</text>';
     } else {
-      s += '<text x="' + (x1 - 5) + '" y="' + (cy + 4) + '" font-size="10.5" fill="' + col.light + '" text-anchor="end">' + rg.low.toFixed(2) + '</text>';
+      s += '<text x="' + (x1 - 5) + '" y="' + (cy + 4) + '" font-size="10.5" fill="' + col.light + '" text-anchor="end">' + fmtLow(rg.low) + '</text>';
     }
-    s += '<text x="' + (x2 + 5) + '" y="' + (cy + 4) + '" font-size="10.5" fill="' + col.light + '" text-anchor="start">' + rg.high.toFixed(2) + '</text>';
+    s += '<text x="' + (x2 + 5) + '" y="' + (cy + 4) + '" font-size="10.5" fill="' + col.light + '" text-anchor="start">' + fmt(rg.high) + '</text>';
   }
   s += '<text transform="translate(13,' + (top + rowsH / 2) + ') rotate(-90)" font-size="11" fill="#c8d5eb" text-anchor="middle">換算係数</text>';
   s += '<text x="' + ((L + R) / 2) + '" y="' + (axisY + 18) + '" font-size="11" fill="#c8d5eb" text-anchor="middle">校正ガス濃度</text>';
