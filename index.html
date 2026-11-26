@@ -89,7 +89,8 @@
   @media (max-width: 480px) {
     #exportPanel table { font-size: 11px; }
     #exportPanel th, #exportPanel td { padding: 6px 2px; }
-    #exportPanel th { white-space: nowrap; font-size: 10.5px; }
+    #exportPanel th { white-space: normal; overflow-wrap: anywhere; font-size: 10.5px; }
+    #exportPanel th:nth-child(2), #exportPanel td:nth-child(2) { display: none; }
     #exportPanel td.grp-cell { font-size: 13px; }
     #exportPanel td.num-low, #exportPanel td.num-high, #exportPanel td.num-conc { font-size: 12px; }
     .pattern-btn { font-size: 12px; padding: 8px 2px; }
