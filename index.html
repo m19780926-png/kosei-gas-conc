@@ -81,6 +81,7 @@
   .plan-line { font-size: 14px; line-height: 1.9; color: #e8eef7; }
   .plan-line .rec { color: #fde047; font-weight: bold; }
   #exportPanel td.num-high { color: #f87171; font-weight: bold; font-size: 14px; }
+  #exportPanel td.num-conc { color: #fde047; font-weight: bold; font-size: 14px; }
   #exportPanel td.grp-cell, #exportPanel th.grp-head { text-align: center; }
   #exportPanel td.grp-cell { font-weight: bold; font-size: 15px; }
   #exportPanel td.gas-name { font-weight: bold; color: #facc15; font-family: inherit; }
@@ -90,7 +91,7 @@
     #exportPanel th, #exportPanel td { padding: 6px 2px; }
     #exportPanel th { white-space: nowrap; font-size: 10.5px; }
     #exportPanel td.grp-cell { font-size: 13px; }
-    #exportPanel td.num-low, #exportPanel td.num-high { font-size: 12px; }
+    #exportPanel td.num-low, #exportPanel td.num-high, #exportPanel td.num-conc { font-size: 12px; }
     .pattern-btn { font-size: 12px; padding: 8px 2px; }
     .plan-line { font-size: 13px; }
     .chart-block svg { width: calc(100% + 28px) !important; margin-left: -14px; }
@@ -683,7 +684,7 @@ function groupColorFor(grp, pat) {
   for (var pi = 0; pi < plans.length; pi++) {
     for (var xi = 0; xi < plans[pi].idxs.length; xi++) {
       var rg = grp.ranges[plans[pi].idxs[xi]];
-      map[fmtF(rg.f)] = { idx: pi, mark: pi < PLAN_MARKS.length ? PLAN_MARKS[pi] : "(" + (pi + 1) + ")", col: GROUP_COLORS[pi % GROUP_COLORS.length] };
+      map[fmtF(rg.f)] = { idx: pi, mark: pi < PLAN_MARKS.length ? PLAN_MARKS[pi] : "(" + (pi + 1) + ")", col: GROUP_COLORS[pi % GROUP_COLORS.length], rec: plans[pi].rec };
     }
   }
   return map;
@@ -706,6 +707,11 @@ function recolorGasList(gasBlock, grp, pat) {
     var gTd = tr.querySelector("td.grp-cell");
     if (gTd) {
       gTd.innerHTML = '<span style="color:' + e.col.light + '">' + e.mark + "</span>";
+    }
+    var cTd = tr.querySelector("td.conc-cell");
+    if (cTd) {
+      cTd.className = "num-conc conc-cell";
+      cTd.textContent = e.rec.toFixed(2);
     }
   }
 }
@@ -831,7 +837,7 @@ document.getElementById("exportBtn").addEventListener("click", function () {
       }
       html += '<div class="gas-block" data-gi="' + gi + '">';
       html += '<div class="gas-head">校正ガス濃度一覧 <span>' + gname + "</span></div>";
-      html += "<div class=\"table-wrap\"><table><tr><th class=\"grp-head\">No</th><th>ガス名</th><th>1st</th><th>係数</th><th>1st×1.12〜</th><th>〜1st×1.6</th></tr>";
+      html += "<div class=\"table-wrap\"><table><tr><th class=\"grp-head\">No</th><th>ガス名</th><th>1st</th><th>係数</th><th>1st×1.12〜</th><th>〜1st×1.6</th><th>校正ガス濃度</th></tr>";
       for (var k = 0; k < rows.length; k++) {
         var r = rows[k];
         var ge = (r.factor === "なし") ? null : cmap[r.first + "|" + fmtF(parseFloat(r.factor))];
@@ -839,7 +845,10 @@ document.getElementById("exportBtn").addEventListener("click", function () {
         var grpCell = ge
           ? '<td class="grp-cell"' + bgStyle + '><span style="color:' + ge.col.light + '">' + ge.mark + "</span></td>"
           : '<td class="grp-cell">' + (r.factor === "なし" ? '<span style="color:#93a5c4">－</span>' : "") + "</td>";
-        html += '<tr data-first="' + r.first + '" data-factor="' + r.factor + '">' + grpCell + '<td class="gas-name"' + bgStyle + ">" + r.name + "</td><td" + bgStyle + ">" + r.first + "</td><td" + bgStyle + ">" + r.factor + '</td><td class="num-low"' + bgStyle + ">" + r.low + '</td><td class="num-high"' + bgStyle + ">" + r.high + "</td></tr>";
+        var concCell = ge
+          ? '<td class="num-conc conc-cell"' + bgStyle + ">" + ge.rec.toFixed(2) + "</td>"
+          : '<td class="conc-cell">' + (r.factor === "なし" ? '<span style="color:#93a5c4">－</span>' : "") + "</td>";
+        html += '<tr data-first="' + r.first + '" data-factor="' + r.factor + '">' + grpCell + '<td class="gas-name"' + bgStyle + ">" + r.name + "</td><td" + bgStyle + ">" + r.first + "</td><td" + bgStyle + ">" + r.factor + '</td><td class="num-low"' + bgStyle + ">" + r.low + '</td><td class="num-high"' + bgStyle + ">" + r.high + "</td>" + concCell + "</tr>";
       }
       html += "</table></div>";
       html += chartHtml;
@@ -877,12 +886,12 @@ function stampNow() {
 function downloadGasCSV(gd) {
   if (!gd || !gd.rows.length) return;
   var gmap = gasGroupMap(gd);
-  var lines = ["No,ガス名,1st,係数,1st×1.12〜,〜1st×1.6"];
+  var lines = ["No,ガス名,1st,係数,1st×1.12〜,〜1st×1.6,校正ガス濃度"];
   for (var i = 0; i < gd.rows.length; i++) {
     var r = gd.rows[i];
     var ge = groupEntryFor(gmap, r);
     var nm = '"' + String(r.name).replace(/"/g, '""') + '"';
-    lines.push((ge ? ge.mark : "") + "," + nm + "," + r.first + "," + r.factor + "," + r.low + "," + r.high);
+    lines.push((ge ? ge.mark : "") + "," + nm + "," + r.first + "," + r.factor + "," + r.low + "," + r.high + "," + (ge ? ge.rec.toFixed(2) : ""));
   }
   var blob = new Blob(["\uFEFF" + lines.join("\r\n")], { type: "text/csv" });
   var a = document.createElement("a");
@@ -899,7 +908,7 @@ function copyGasText(gd) {
   for (var i = 0; i < gd.rows.length; i++) {
     var r = gd.rows[i];
     var ge = groupEntryFor(gmap, r);
-    lines.push((ge ? ge.mark + " " : "") + r.name + "　1st：" + r.first + "　係数：" + r.factor + "　1st×1.12〜：" + r.low + "　〜1st×1.6：" + r.high);
+    lines.push((ge ? ge.mark + " " : "") + r.name + "　1st：" + r.first + "　係数：" + r.factor + "　1st×1.12〜：" + r.low + "　〜1st×1.6：" + r.high + (ge ? "　校正ガス濃度：" + ge.rec.toFixed(2) : ""));
   }
   var text = lines.join("\n");
   if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -939,7 +948,7 @@ function saveGasTableImage(gd) {
   var gmap = gasGroupMap(gd);
   var W = 720, pad = 24;
   var tableW = W - pad * 2;
-  var cols = [0.13, 0.16, 0.11, 0.19, 0.20, 0.21];
+  var cols = [0.11, 0.14, 0.09, 0.15, 0.18, 0.17, 0.16];
   var colX = [pad];
   for (var ci = 0; ci < cols.length; ci++) colX.push(colX[ci] + Math.round(tableW * cols[ci]));
   colX[cols.length] = pad + tableW;
@@ -965,7 +974,7 @@ function saveGasTableImage(gd) {
   var y = pad + titleH;
   ctx.fillStyle = "#122544";
   ctx.fillRect(pad, y, tableW, headH);
-  var heads = ["No", "ガス名", "1st", "係数", "1st×1.12〜", "〜1st×1.6"];
+  var heads = ["No", "ガス名", "1st", "係数", "1st×1.12〜", "〜1st×1.6", "校正ガス濃度"];
   ctx.font = "bold 14px sans-serif";
   ctx.fillStyle = "#bfe0ff";
   for (var h = 0; h < heads.length; h++) {
@@ -999,6 +1008,8 @@ function saveGasTableImage(gd) {
     ctx.fillStyle = "#f87171";
     ctx.fillText(String(r.low), colX[5] - 10, cy);
     ctx.fillText(String(r.high), colX[6] - 10, cy);
+    ctx.fillStyle = ge ? "#fde047" : "#93a5c4";
+    ctx.fillText(ge ? ge.rec.toFixed(2) : (r.factor === "なし" ? "－" : ""), colX[7] - 10, cy);
     y += rowH;
   }
   ctx.strokeStyle = "#26375a";
