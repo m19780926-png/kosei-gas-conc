@@ -396,8 +396,19 @@ function calc(card) {
 document.getElementById("addBtn").addEventListener("click", function () {
   var cards = document.querySelectorAll("#rows .card");
   for (var i = 0; i < cards.length; i++) setCardOpen(cards[i], false);
-  document.getElementById("rows").appendChild(makeRow());
+  var card = makeRow();
+  document.getElementById("rows").appendChild(card);
   refreshChips();
+  var sel = card.querySelector(".gas-sel");
+  if (sel) {
+    card.scrollIntoView({ behavior: "smooth", block: "start" });
+    setTimeout(function () {
+      try {
+        if (typeof sel.showPicker === "function") sel.showPicker();
+        else sel.focus();
+      } catch (e) { sel.focus(); }
+    }, 350);
+  }
 });
 
 function collectResults() {
