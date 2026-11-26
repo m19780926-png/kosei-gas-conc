@@ -797,7 +797,7 @@ function bindConcInputs() {
         var prods = "";
         for (var h = 0; h < hits.length; h++) prods += (h ? "、" : "") + fmtF(hits[h]) + " → " + (v * hits[h]).toFixed(3);
         result.innerHTML = "濃度 " + raw + ' → 換算係数 <span class="cf">' + fr + "</span> が校正できます" +
-          '<div class="conc-after">校正後値（濃度×係数）：' + prods + "</div>";
+          '<div class="conc-after">調整後値（濃度×係数）：' + prods + "</div>";
       }
       wrap.innerHTML = renderChartSVG(grp, v, pat2);
     });
